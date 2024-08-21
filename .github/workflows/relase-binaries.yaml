@@ -61,7 +61,6 @@ jobs:
       - name: Release with Notes
         uses: softprops/action-gh-release@v1
         with:
-          draft: true
           files: "mni-*/*"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
