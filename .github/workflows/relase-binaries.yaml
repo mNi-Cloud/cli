@@ -1,0 +1,52 @@
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+name: Release mni-client binaries
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: 'ubuntu-latest'
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        goosarch:
+          - 'darwin/amd64'
+          - 'darwin/arm64'
+          - 'linux/amd64'
+          - 'windows/amd64'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.22.4'
+      - name: Get OS and arch info
+        run: |
+          GOOSARCH=${{matrix.goosarch}}
+          GOOS=${GOOSARCH%/*}
+          GOARCH=${GOOSARCH#*/}
+          BINARY_NAME=mni-$GOOS-$GOARCH
+          echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
+          echo "GOOS=$GOOS" >> $GITHUB_ENV
+          echo "GOARCH=$GOARCH" >> $GITHUB_ENV
+      - name: Build
+        run: |
+          git config --global url."git@github.com:mNi-Cloud/backend".insteadOf "https://github.com/mNi-Cloud/backend"
+          GOPRIVATE=github.com/mNi-Cloud go build -o "$BINARY_NAME" -v cmd/mni-client/main.go
+      - name: Release with Notes
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          files: ${{env.BINARY_NAME}}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
