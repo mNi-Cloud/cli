@@ -40,8 +40,11 @@ jobs:
           echo "GOOS=$GOOS" >> $GITHUB_ENV
           echo "GOARCH=$GOARCH" >> $GITHUB_ENV
       - name: Build
+        env:
+          GH_USERNAME: ${{secrets.GH_USERNAME}}
+          GH_PAT: ${{secrets.GH_PAT}}
         run: |
-          git config --global url."https://{{ secrets.GH_USERNAME }}:{{ secrets.GH_PAT }}@github.com/mNi-Cloud/backend".insteadOf "https://github.com/mNi-Cloud/backend"
+          git config --global url."https://$GH_USERNAME:$GH_PAT@github.com/mNi-Cloud/backend".insteadOf "https://github.com/mNi-Cloud/backend"
           GOPRIVATE=github.com/mNi-Cloud go build -o "$BINARY_NAME" -v cmd/mni-client/main.go
       - name: Release with Notes
         uses: softprops/action-gh-release@v1
