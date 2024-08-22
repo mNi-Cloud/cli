@@ -15,8 +15,8 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/mNi-Cloud/cli/cmd/mni-client/commands"
 	mni_vm "github.com/mNi-Cloud/backend/vm/pkg/client/v1alpha1"
+	"github.com/mNi-Cloud/cli/cmd/mni-client/commands"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/term"
 )
@@ -25,7 +25,8 @@ var Command = &cli.Command{
 	Name: "vms",
 	Subcommands: []*cli.Command{
 		{
-			Name: "list",
+			Name:   "list",
+			Before: commands.TokenFunc(),
 			Action: func(c *cli.Context) error {
 				vmClient, err := commands.NewVmClient(c)
 				if err != nil {
@@ -48,6 +49,7 @@ var Command = &cli.Command{
 		{
 			Name:      "get",
 			ArgsUsage: "<name>",
+			Before:    commands.TokenFunc(),
 			Action: func(c *cli.Context) error {
 				if c.NArg() != 1 {
 					cli.ShowSubcommandHelpAndExit(c, 1)
@@ -109,6 +111,7 @@ var Command = &cli.Command{
 					Usage: "userdata `FILE`",
 				},
 			},
+			Before: commands.TokenFunc(),
 			Action: func(c *cli.Context) error {
 				vmClient, err := commands.NewVmClient(c)
 				if err != nil {
@@ -156,6 +159,7 @@ var Command = &cli.Command{
 		{
 			Name:      "delete",
 			ArgsUsage: "<name>",
+			Before:    commands.TokenFunc(),
 			Action: func(c *cli.Context) error {
 				if c.NArg() != 1 {
 					cli.ShowSubcommandHelpAndExit(c, 1)
@@ -183,6 +187,7 @@ var Command = &cli.Command{
 		{
 			Name:      "start",
 			ArgsUsage: "<name>",
+			Before:    commands.TokenFunc(),
 			Action: func(c *cli.Context) error {
 				if c.NArg() != 1 {
 					cli.ShowSubcommandHelpAndExit(c, 1)
@@ -210,6 +215,7 @@ var Command = &cli.Command{
 		{
 			Name:      "stop",
 			ArgsUsage: "<name>",
+			Before:    commands.TokenFunc(),
 			Action: func(c *cli.Context) error {
 				if c.NArg() != 1 {
 					cli.ShowSubcommandHelpAndExit(c, 1)
@@ -237,6 +243,7 @@ var Command = &cli.Command{
 		{
 			Name:      "serial",
 			ArgsUsage: "<name>",
+			Before:    commands.TokenFunc(),
 			Action: func(ctx *cli.Context) error {
 				if ctx.NArg() != 1 {
 					cli.ShowSubcommandHelpAndExit(ctx, 1)
@@ -328,6 +335,7 @@ var Command = &cli.Command{
 			Name:      "vnc",
 			ArgsUsage: "<name>",
 			Flags:     []cli.Flag{},
+			Before:    commands.TokenFunc(),
 			Action: func(ctx *cli.Context) error {
 				if ctx.NArg() != 1 {
 					cli.ShowSubcommandHelpAndExit(ctx, 1)

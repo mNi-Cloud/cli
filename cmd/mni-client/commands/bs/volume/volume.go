@@ -14,7 +14,8 @@ var Command = &cli.Command{
 	Name: "volumes",
 	Subcommands: []*cli.Command{
 		{
-			Name: "list",
+			Name:   "list",
+			Before: commands.TokenFunc(),
 			Action: func(c *cli.Context) error {
 				bsClient, err := commands.NewBsClient(c)
 				if err != nil {
@@ -42,6 +43,7 @@ var Command = &cli.Command{
 		{
 			Name:      "get",
 			ArgsUsage: "<name>",
+			Before:    commands.TokenFunc(),
 			Action: func(c *cli.Context) error {
 				if c.NArg() != 1 {
 					cli.ShowSubcommandHelpAndExit(c, 1)
@@ -82,6 +84,7 @@ var Command = &cli.Command{
 					Required: false,
 				},
 			},
+			Before: commands.TokenFunc(),
 			Action: func(c *cli.Context) error {
 				bsClient, err := commands.NewBsClient(c)
 				if err != nil {
@@ -120,6 +123,7 @@ var Command = &cli.Command{
 		{
 			Name:      "delete",
 			ArgsUsage: "<name>",
+			Before:    commands.TokenFunc(),
 			Action: func(c *cli.Context) error {
 				if c.NArg() != 1 {
 					cli.ShowSubcommandHelpAndExit(c, 1)

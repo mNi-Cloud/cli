@@ -8,6 +8,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/jedib0t/go-pretty/v6 v6.5.9
 	github.com/labstack/gommon v0.4.2
+	github.com/mNi-Cloud/backend/auth v0.0.0-20240821131607-a5e5c124ab47
 	github.com/mNi-Cloud/backend/bs v0.0.0-20240821131607-a5e5c124ab47
 	github.com/mNi-Cloud/backend/ctr v0.0.0-20240821131607-a5e5c124ab47
 	github.com/mNi-Cloud/backend/vm v0.0.0-20240821131607-a5e5c124ab47

@@ -16,7 +16,7 @@ type (
 	}
 )
 
-func GetIdToken(ctx context.Context, endpoint string, realm string, clientId string) (*string, error) {
+func GetIdToken(ctx context.Context, endpoint string, realm string, clientId string) (*Response, error) {
 	oidcFlow := oidcFlow{}
 	endpoint, _ = strings.CutSuffix(endpoint, "/")
 
@@ -44,5 +44,5 @@ func GetIdToken(ctx context.Context, endpoint string, realm string, clientId str
 	if res.Error != nil {
 		return nil, errors.New("Failed to get id token: " + (*res.Error).Error())
 	}
-	return res.IdToken, nil
+	return &res, nil
 }

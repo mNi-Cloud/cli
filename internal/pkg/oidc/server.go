@@ -24,8 +24,11 @@ type (
 	}
 
 	Response struct {
-		IdToken *string
-		Error   *error
+		IdToken       *string
+		RefreshToken  *string
+		Expiry        *time.Time
+		RefreshExpiry *time.Time
+		Error         *error
 	}
 )
 
@@ -110,17 +113,28 @@ func (s *Server) callbackHandler(resp http.ResponseWriter, req *http.Request) {
 	}
 
 	idToken, ok := tokenResponse.Extra("id_token").(string)
-
 	if !ok {
 		http.Error(resp, "Failed to extract id_token", http.StatusBadRequest)
+		return
 	}
 
-	// send 200 to resp
+	refreshExpiresIn, ok := tokenResponse.Extra("refresh_expires_in").(float64)
+	if !ok {
+		http.Error(resp, "Failed to extract refresh_expires_in", http.StatusBadRequest)
+		return
+	}
+	refreshExpiry := time.Now().Add(time.Duration(refreshExpiresIn) * time.Second)
+
 	resp.WriteHeader(200)
 	resp.Write([]byte("Success"))
 
 	s.stop <- true
-	s.Res <- Response{IdToken: &idToken}
+	s.Res <- Response{
+		IdToken:       &idToken,
+		RefreshToken:  &tokenResponse.RefreshToken,
+		Expiry:        &tokenResponse.Expiry,
+		RefreshExpiry: &refreshExpiry,
+	}
 }
 
 func (s *Server) addStateCookie(resp http.ResponseWriter) string {

@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/mNi-Cloud/cli/cmd/mni-client/commands"
 	mni_ctr "github.com/mNi-Cloud/backend/ctr/pkg/client/v1alpha1"
+	"github.com/mNi-Cloud/cli/cmd/mni-client/commands"
 	"github.com/urfave/cli/v2"
 )
 
@@ -15,7 +15,8 @@ var Command = &cli.Command{
 	Name: "containers",
 	Subcommands: []*cli.Command{
 		{
-			Name: "list",
+			Name:   "list",
+			Before: commands.TokenFunc(),
 			Action: func(c *cli.Context) error {
 				ctrClient, err := commands.NewCtrClient(c)
 				if err != nil {
@@ -38,6 +39,7 @@ var Command = &cli.Command{
 		{
 			Name:      "get",
 			ArgsUsage: "<name>",
+			Before:    commands.TokenFunc(),
 			Action: func(c *cli.Context) error {
 				if c.NArg() != 1 {
 					cli.ShowSubcommandHelpAndExit(c, 1)
@@ -82,6 +84,7 @@ var Command = &cli.Command{
 					Required: true,
 				},
 			},
+			Before: commands.TokenFunc(),
 			Action: func(c *cli.Context) error {
 				ctrClient, err := commands.NewCtrClient(c)
 				if err != nil {
@@ -114,6 +117,7 @@ var Command = &cli.Command{
 		{
 			Name:      "delete",
 			ArgsUsage: "<name>",
+			Before:    commands.TokenFunc(),
 			Action: func(c *cli.Context) error {
 				if c.NArg() != 1 {
 					cli.ShowSubcommandHelpAndExit(c, 1)

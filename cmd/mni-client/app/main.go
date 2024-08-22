@@ -3,13 +3,13 @@ package app
 import (
 	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/bs/volume"
 	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/ctr/container"
+	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/login"
 	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/vm/image"
 	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/vm/vm"
 	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/vpc/eip"
 	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/vpc/eipassociate"
 	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/vpc/subnet"
 	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/vpc/vpc"
-	"github.com/mNi-Cloud/cli/internal/pkg/oidc"
 	"github.com/urfave/cli/v2"
 )
 
@@ -92,19 +92,8 @@ func New() *cli.App {
 				container.Command,
 			},
 		},
+		login.Command,
 	}
 
-	app.Before = func(c *cli.Context) error {
-		token, err := oidc.GetIdToken(c.Context, c.String("idp-endpoint"), "cloud", "mni-cli")
-		if err != nil {
-			return err
-		}
-		err = c.Set("token", *token)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
 	return app
 }
