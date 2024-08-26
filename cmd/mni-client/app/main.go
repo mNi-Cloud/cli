@@ -30,31 +30,31 @@ func New() *cli.App {
 		&cli.StringFlag{
 			Name:    "vpc-endpoint",
 			Usage:   "The endpoint of mni-vpc service",
-			Value:   "https://mnicloud.jp/api/vpc",
+			Value:   "https://api.mnicloud.jp/vpc",
 			EnvVars: []string{"MNI_VPC_ENDPOINT"},
 		},
 		&cli.StringFlag{
 			Name:    "vm-endpoint",
 			Usage:   "The endpoint of mni-vm service",
-			Value:   "https://mnicloud.jp/api/vm",
+			Value:   "https://api.mnicloud.jp/vm",
 			EnvVars: []string{"MNI_VM_ENDPOINT"},
 		},
 		&cli.StringFlag{
 			Name:    "bs-endpoint",
 			Usage:   "The endpoint of mni-bs service",
-			Value:   "https://mnicloud.jp/api/bs",
+			Value:   "https://api.mnicloud.jp/bs",
 			EnvVars: []string{"MNI_BS_ENDPOINT"},
 		},
 		&cli.StringFlag{
 			Name:    "ctr-endpoint",
 			Usage:   "The endpoint of mni-ctr service",
-			Value:   "https://mnicloud.jp/api/ctr",
+			Value:   "https://api.mnicloud.jp/ctr",
 			EnvVars: []string{"MNI_CTR_ENDPOINT"},
 		},
 		&cli.StringFlag{
 			Name:    "auth-endpoint",
 			Usage:   "The endpoint of mni-auth service",
-			Value:   "https://mnicloud.jp/api/auth",
+			Value:   "https://api.mnicloud.jp/auth",
 			EnvVars: []string{"MNI_AUTH_ENDPOINT"},
 		},
 		&cli.StringFlag{
