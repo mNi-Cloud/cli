@@ -253,7 +253,7 @@ var Command = &cli.Command{
 				interrupt := make(chan os.Signal, 1)
 				signal.Notify(interrupt, os.Interrupt)
 
-				c, _, err := websocket.DefaultDialer.Dial(fmt.Sprintf("%s/api/v1alpha1/vms/%s/serial", strings.Replace(ctx.String("vm-endpoint"), "http", "ws", 1), ctx.Args().First()), http.Header{"X-namespace": []string{ctx.String("namespace")}})
+				c, _, err := websocket.DefaultDialer.Dial(fmt.Sprintf("%s/v1alpha1/vms/%s/serial", strings.Replace(ctx.String("vm-endpoint"), "http", "ws", 1), ctx.Args().First()), http.Header{"Authorization": []string{"Bearer " + ctx.String("token")}})
 				if err != nil {
 					log.Fatal("dial:", err)
 				}
@@ -342,7 +342,7 @@ var Command = &cli.Command{
 					return nil
 				}
 
-				c, _, err := websocket.DefaultDialer.Dial(fmt.Sprintf("%s/api/v1alpha1/vms/%s/vnc", strings.Replace(ctx.String("vm-endpoint"), "http", "ws", 1), ctx.Args().First()), http.Header{"X-namespace": []string{ctx.String("namespace")}})
+				c, _, err := websocket.DefaultDialer.Dial(fmt.Sprintf("%s/v1alpha1/vms/%s/vnc", strings.Replace(ctx.String("vm-endpoint"), "http", "ws", 1), ctx.Args().First()), http.Header{"Authorization": []string{"Bearer " + ctx.String("token")}})
 				if err != nil {
 					log.Fatal("dial:", err)
 				}
