@@ -35,7 +35,12 @@ var Command = &cli.Command{
 				}
 
 				if res.StatusCode() != 200 {
-					return cli.Exit(fmt.Sprintf("Error %d: %s %s", res.StatusCode(), res.JSONDefault.Resource, res.JSONDefault.Message), 1)
+					if res.JSONDefault != nil {
+						return cli.Exit(fmt.Sprintf("Error %d: %s %s", res.StatusCode(), res.JSONDefault.Resource, res.JSONDefault.Message), 1)
+					} else {
+						return cli.Exit(fmt.Sprintf("Error %d: %s", res.StatusCode(), string(res.Body)), 1)
+					}
+
 				} else {
 					images := res.JSON200
 
@@ -65,7 +70,12 @@ var Command = &cli.Command{
 				}
 
 				if res.StatusCode() != 200 {
-					return cli.Exit(fmt.Sprintf("Error %d: %s %s", res.StatusCode(), res.JSONDefault.Resource, res.JSONDefault.Message), 1)
+					if res.JSONDefault != nil {
+						return cli.Exit(fmt.Sprintf("Error %d: %s %s", res.StatusCode(), res.JSONDefault.Resource, res.JSONDefault.Message), 1)
+					} else {
+						return cli.Exit(fmt.Sprintf("Error %d: %s", res.StatusCode(), string(res.Body)), 1)
+					}
+
 				} else {
 					image := res.JSON200
 
@@ -118,7 +128,12 @@ var Command = &cli.Command{
 				}
 
 				if res.StatusCode() != 201 {
-					return cli.Exit(fmt.Sprintf("Error %d: %s %s", res.StatusCode(), res.JSONDefault.Resource, res.JSONDefault.Message), 1)
+					if res.JSONDefault != nil {
+						return cli.Exit(fmt.Sprintf("Error %d: %s %s", res.StatusCode(), res.JSONDefault.Resource, res.JSONDefault.Message), 1)
+					} else {
+						return cli.Exit(fmt.Sprintf("Error %d: %s", res.StatusCode(), string(res.Body)), 1)
+					}
+
 				} else {
 					image := res.JSON201
 
@@ -150,7 +165,12 @@ var Command = &cli.Command{
 				}
 
 				if res.StatusCode() != 204 {
-					return cli.Exit(fmt.Sprintf("Error %d: %s %s", res.StatusCode(), res.JSONDefault.Resource, res.JSONDefault.Message), 1)
+					if res.JSONDefault != nil {
+						return cli.Exit(fmt.Sprintf("Error %d: %s %s", res.StatusCode(), res.JSONDefault.Resource, res.JSONDefault.Message), 1)
+					} else {
+						return cli.Exit(fmt.Sprintf("Error %d: %s", res.StatusCode(), string(res.Body)), 1)
+					}
+
 				} else {
 					fmt.Println("Image deleted successfully")
 					return nil

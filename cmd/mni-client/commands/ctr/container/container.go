@@ -29,7 +29,12 @@ var Command = &cli.Command{
 				}
 
 				if res.StatusCode() != 200 {
-					return cli.Exit(fmt.Sprintf("Error %d: %s %s", res.StatusCode(), res.JSONDefault.Resource, res.JSONDefault.Message), 1)
+					if res.JSONDefault != nil {
+						return cli.Exit(fmt.Sprintf("Error %d: %s %s", res.StatusCode(), res.JSONDefault.Resource, res.JSONDefault.Message), 1)
+					} else {
+						return cli.Exit(fmt.Sprintf("Error %d: %s", res.StatusCode(), string(res.Body)), 1)
+					}
+
 				} else {
 					containers := res.JSON200
 					return displayMultiple(c, *containers)
@@ -57,7 +62,12 @@ var Command = &cli.Command{
 				}
 
 				if res.StatusCode() != 200 {
-					return cli.Exit(fmt.Sprintf("Error %d: %s %s", res.StatusCode(), res.JSONDefault.Resource, res.JSONDefault.Message), 1)
+					if res.JSONDefault != nil {
+						return cli.Exit(fmt.Sprintf("Error %d: %s %s", res.StatusCode(), res.JSONDefault.Resource, res.JSONDefault.Message), 1)
+					} else {
+						return cli.Exit(fmt.Sprintf("Error %d: %s", res.StatusCode(), string(res.Body)), 1)
+					}
+
 				} else {
 					container := res.JSON200
 					return displaySingle(c, *container)
@@ -107,7 +117,12 @@ var Command = &cli.Command{
 				}
 
 				if res.StatusCode() != 201 {
-					return cli.Exit(fmt.Sprintf("Error %d: %s %s", res.StatusCode(), res.JSONDefault.Resource, res.JSONDefault.Message), 1)
+					if res.JSONDefault != nil {
+						return cli.Exit(fmt.Sprintf("Error %d: %s %s", res.StatusCode(), res.JSONDefault.Resource, res.JSONDefault.Message), 1)
+					} else {
+						return cli.Exit(fmt.Sprintf("Error %d: %s", res.StatusCode(), string(res.Body)), 1)
+					}
+
 				} else {
 					container := res.JSON201
 					return displaySingle(c, *container)
@@ -135,7 +150,12 @@ var Command = &cli.Command{
 				}
 
 				if res.StatusCode() != 204 {
-					return cli.Exit(fmt.Sprintf("Error %d: %s %s", res.StatusCode(), res.JSONDefault.Resource, res.JSONDefault.Message), 1)
+					if res.JSONDefault != nil {
+						return cli.Exit(fmt.Sprintf("Error %d: %s %s", res.StatusCode(), res.JSONDefault.Resource, res.JSONDefault.Message), 1)
+					} else {
+						return cli.Exit(fmt.Sprintf("Error %d: %s", res.StatusCode(), string(res.Body)), 1)
+					}
+
 				} else {
 					fmt.Println("VM deleted successfully")
 					return nil
@@ -273,7 +293,12 @@ func displayMultiple(c *cli.Context, containers []mni_ctr.ContainerPool) error {
 				if res.StatusCode() == 404 {
 					statusList = append(statusList, "Unknown")
 				} else if res.StatusCode() != 200 {
-					return cli.Exit(fmt.Sprintf("Error %d: %s %s", res.StatusCode(), res.JSONDefault.Resource, res.JSONDefault.Message), 1)
+					if res.JSONDefault != nil {
+						return cli.Exit(fmt.Sprintf("Error %d: %s %s", res.StatusCode(), res.JSONDefault.Resource, res.JSONDefault.Message), 1)
+					} else {
+						return cli.Exit(fmt.Sprintf("Error %d: %s", res.StatusCode(), string(res.Body)), 1)
+					}
+
 				} else {
 					statusList = append(statusList, *res.JSON200.Status)
 				}
