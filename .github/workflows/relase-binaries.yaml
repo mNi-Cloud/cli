@@ -61,7 +61,7 @@ jobs:
         uses: actions/download-artifact@v3
       - name: Caluculate hash
         run: |
-          ls mni-*/* | xargs md5 > hashes
+          ls mni-*/* | xargs md5sum > hashes
       - name: Release with Notes
         uses: softprops/action-gh-release@v1
         with:
