@@ -59,9 +59,13 @@ jobs:
     steps:
       - name: download artifacts
         uses: actions/download-artifact@v3
+      - name: Caluculate hash
+        run: |
+          ls mni-*/* | xargs md5 > hashes
       - name: Release with Notes
         uses: softprops/action-gh-release@v1
         with:
+          body_path: "hashes"
           files: "mni-*/*"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
