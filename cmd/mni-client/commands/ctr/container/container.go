@@ -265,7 +265,7 @@ func displayMultiple(c *cli.Context, containers []mni_ctr.ContainerPool) error {
 					return err
 				}
 
-				res, err := ctrClient.V1Alpha1().GetContainerWithResponse(c.Context, instanceName, &mni_ctr.GetContainerParams{Authorization: c.String("Authorization")})
+				res, err := ctrClient.V1Alpha1().GetContainerWithResponse(c.Context, instanceName, &mni_ctr.GetContainerParams{Authorization: "Bearer " + c.String("token")})
 				if err != nil {
 					return err
 				}
