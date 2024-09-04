@@ -8,14 +8,14 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/jedib0t/go-pretty/v6 v6.5.9
 	github.com/labstack/gommon v0.4.2
-	github.com/mNi-Cloud/backend/auth v0.0.0-20240821131607-a5e5c124ab47
-	github.com/mNi-Cloud/backend/bs v0.0.0-20240821131607-a5e5c124ab47
-	github.com/mNi-Cloud/backend/ctr v0.0.0-20240821131607-a5e5c124ab47
-	github.com/mNi-Cloud/backend/vm v0.0.0-20240821131607-a5e5c124ab47
-	github.com/mNi-Cloud/backend/vpc v0.0.0-20240821131607-a5e5c124ab47
+	github.com/mNi-Cloud/backend/auth v0.0.0-20240904035537-b8dbea2d23de
+	github.com/mNi-Cloud/backend/bs v0.0.0-20240904035537-b8dbea2d23de
+	github.com/mNi-Cloud/backend/ctr v0.0.0-20240904035537-b8dbea2d23de
+	github.com/mNi-Cloud/backend/vm v0.0.0-20240904035537-b8dbea2d23de
+	github.com/mNi-Cloud/backend/vpc v0.0.0-20240904035537-b8dbea2d23de
 	github.com/urfave/cli/v2 v2.27.3
 	golang.org/x/oauth2 v0.21.0
-	golang.org/x/term v0.21.0
+	golang.org/x/term v0.22.0
 )
 
 require (
@@ -33,7 +33,7 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
-	golang.org/x/crypto v0.24.0 // indirect
+	golang.org/x/crypto v0.25.0 // indirect
 	golang.org/x/net v0.26.0 // indirect
 	golang.org/x/sys v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect

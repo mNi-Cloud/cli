@@ -88,7 +88,11 @@ var Command = &cli.Command{
 					Required: true,
 				},
 				&cli.StringFlag{
-					Name:     "target",
+					Name:     "target-type",
+					Required: true,
+				},
+				&cli.StringFlag{
+					Name:     "target-name",
 					Required: true,
 				},
 			},
@@ -100,8 +104,21 @@ var Command = &cli.Command{
 				}
 				name := c.String("name")
 				eip := c.String("eip")
-				target := c.String("target")
-				res, err := vpcClient.V1Alpha1().CreateEipAssociateWithResponse(c.Context, &mni_vpc.CreateEipAssociateParams{Authorization: "Bearer " + c.String("token")}, mni_vpc.EipAssociate{Name: &name, Eip: &eip, Target: &target})
+				targetType := c.String("target-type")
+				targetName := c.String("target-name")
+				res, err := vpcClient.V1Alpha1().CreateEipAssociateWithResponse(c.Context,
+					&mni_vpc.CreateEipAssociateParams{Authorization: "Bearer " + c.String("token")},
+					mni_vpc.EipAssociate{
+						Name: &name,
+						Eip:  &eip,
+						Target: &struct {
+							Name string `json:"name"`
+							Type string `json:"type"`
+						}{
+							Name: targetName,
+							Type: targetType,
+						},
+					})
 				if err != nil {
 					return err
 				}
@@ -174,7 +191,7 @@ func displayMultiple(c *cli.Context, eipAssociates *[]mni_vpc.EipAssociate) {
 			eip = *eipAssociate.Eip
 		}
 		if eipAssociate.Target != nil {
-			target = *eipAssociate.Target
+			target = eipAssociate.Target.Type + "/" + eipAssociate.Target.Name
 		}
 
 		t.AppendRow(table.Row{name, eip, target})
@@ -201,7 +218,7 @@ func displaySingle(c *cli.Context, eipAssociate *mni_vpc.EipAssociate) {
 		eip = *eipAssociate.Eip
 	}
 	if eipAssociate.Target != nil {
-		target = *eipAssociate.Target
+		target = eipAssociate.Target.Type + "/" + eipAssociate.Target.Name
 	}
 	if eipAssociate.CreatedAt != nil {
 		createdAt = eipAssociate.CreatedAt.String()
