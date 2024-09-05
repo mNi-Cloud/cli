@@ -8,11 +8,11 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/jedib0t/go-pretty/v6 v6.5.9
 	github.com/labstack/gommon v0.4.2
-	github.com/mNi-Cloud/backend/auth v0.0.0-20240904035537-b8dbea2d23de
-	github.com/mNi-Cloud/backend/bs v0.0.0-20240904035537-b8dbea2d23de
-	github.com/mNi-Cloud/backend/ctr v0.0.0-20240904035537-b8dbea2d23de
-	github.com/mNi-Cloud/backend/vm v0.0.0-20240904035537-b8dbea2d23de
-	github.com/mNi-Cloud/backend/vpc v0.0.0-20240904035537-b8dbea2d23de
+	github.com/mNi-Cloud/backend/auth v0.0.0-20240905053311-72241b9763a7
+	github.com/mNi-Cloud/backend/bs v0.0.0-20240905053311-72241b9763a7
+	github.com/mNi-Cloud/backend/ctr v0.0.0-20240905053311-72241b9763a7
+	github.com/mNi-Cloud/backend/vm v0.0.0-20240905122804-58ecf0c296bc
+	github.com/mNi-Cloud/backend/vpc v0.0.0-20240905053311-72241b9763a7
 	github.com/urfave/cli/v2 v2.27.3
 	golang.org/x/oauth2 v0.21.0
 	golang.org/x/term v0.22.0

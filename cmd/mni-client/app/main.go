@@ -1,15 +1,11 @@
 package app
 
 import (
-	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/bs/volume"
-	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/ctr/container"
+	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/bs"
+	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/ctr"
 	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/login"
-	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/vm/image"
-	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/vm/vm"
-	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/vpc/eip"
-	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/vpc/eipassociate"
-	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/vpc/subnet"
-	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/vpc/vpc"
+	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/vm"
+	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/vpc"
 	"github.com/urfave/cli/v2"
 )
 
@@ -67,29 +63,29 @@ func New() *cli.App {
 		{
 			Name: "vpc",
 			Subcommands: []*cli.Command{
-				vpc.Command,
-				subnet.Command,
-				eip.Command,
-				eipassociate.Command,
+				vpc.VpcCommand,
+				vpc.SubnetCommand,
+				vpc.EipCommand,
+				vpc.EipAssociateCommand,
 			},
 		},
 		{
 			Name: "vm",
 			Subcommands: []*cli.Command{
-				vm.Command,
-				image.Command,
+				vm.VirtualMachinePoolCommand,
+				vm.ImageCommand,
 			},
 		},
 		{
 			Name: "bs",
 			Subcommands: []*cli.Command{
-				volume.Command,
+				bs.VolumeCommand,
 			},
 		},
 		{
 			Name: "ctr",
 			Subcommands: []*cli.Command{
-				container.Command,
+				ctr.ContainerPoolCommand,
 			},
 		},
 		login.Command,

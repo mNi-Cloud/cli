@@ -1,35 +1,26 @@
-package image
+package vpc
 
 import (
 	"fmt"
 
 	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/mNi-Cloud/backend/vm/pkg/client/v1alpha1"
+	mni_vpc "github.com/mNi-Cloud/backend/vpc/pkg/client/v1alpha1"
 	"github.com/mNi-Cloud/cli/cmd/mni-client/commands"
 	"github.com/urfave/cli/v2"
 )
 
-var Command = &cli.Command{
-	Name: "images",
+var EipAssociateCommand = &cli.Command{
+	Name: "eipassociates",
 	Subcommands: []*cli.Command{
 		{
-			Name: "list",
-			Flags: []cli.Flag{
-				&cli.BoolFlag{
-					Name:  "include-public",
-					Value: false,
-				},
-			},
+			Name:   "list",
 			Before: commands.TokenFunc(),
 			Action: func(c *cli.Context) error {
-				vmClient, err := commands.NewVmClient(c)
+				vpcClient, err := commands.NewVpcClient(c)
 				if err != nil {
 					return err
 				}
-
-				includePublic := c.Bool("include-public")
-
-				res, err := vmClient.V1Alpha1().GetImageListWithResponse(c.Context, &v1alpha1.GetImageListParams{Authorization: "Bearer " + c.String("token"), IncludePublic: &includePublic})
+				res, err := vpcClient.V1Alpha1().GetEipAssociateListWithResponse(c.Context, &mni_vpc.GetEipAssociateListParams{Authorization: "Bearer " + c.String("token")})
 				if err != nil {
 					return err
 				}
@@ -42,9 +33,9 @@ var Command = &cli.Command{
 					}
 
 				} else {
-					images := res.JSON200
+					eipAssociates := res.JSON200
 
-					displayMultiple(c, *images)
+					displayMultipleEipAssociate(c, eipAssociates)
 
 					return nil
 				}
@@ -60,11 +51,11 @@ var Command = &cli.Command{
 					return nil
 				}
 
-				vmClient, err := commands.NewVmClient(c)
+				vpcClient, err := commands.NewVpcClient(c)
 				if err != nil {
 					return err
 				}
-				res, err := vmClient.V1Alpha1().GetImageWithResponse(c.Context, c.Args().First(), &v1alpha1.GetImageParams{Authorization: "Bearer " + c.String("token")})
+				res, err := vpcClient.V1Alpha1().GetEipAssociateWithResponse(c.Context, c.Args().First(), &mni_vpc.GetEipAssociateParams{Authorization: "Bearer " + c.String("token")})
 				if err != nil {
 					return err
 				}
@@ -77,9 +68,9 @@ var Command = &cli.Command{
 					}
 
 				} else {
-					image := res.JSON200
+					eipAssociate := res.JSON200
 
-					displaySingle(c, *image)
+					displaySingleEipAssociate(c, eipAssociate)
 
 					return nil
 				}
@@ -89,40 +80,45 @@ var Command = &cli.Command{
 			Name: "create",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:     "volume",
+					Name:     "name",
 					Required: true,
 				},
 				&cli.StringFlag{
-					Name:     "os",
+					Name:     "eip",
 					Required: true,
 				},
 				&cli.StringFlag{
-					Name:     "version",
+					Name:     "target-type",
 					Required: true,
 				},
-				&cli.BoolFlag{
-					Name:  "public",
-					Value: false,
+				&cli.StringFlag{
+					Name:     "target-name",
+					Required: true,
 				},
 			},
 			Before: commands.TokenFunc(),
 			Action: func(c *cli.Context) error {
-				vmClient, err := commands.NewVmClient(c)
+				vpcClient, err := commands.NewVpcClient(c)
 				if err != nil {
 					return err
 				}
-
-				volume := c.String("volume")
-				os := c.String("os")
-				version := c.String("version")
-				public := c.Bool("public")
-
-				res, err := vmClient.V1Alpha1().CreateImageWithResponse(c.Context, &v1alpha1.CreateImageParams{Authorization: "Bearer " + c.String("token")}, v1alpha1.Image{
-					Volume:  &volume,
-					Os:      &os,
-					Version: &version,
-					Public:  &public,
-				})
+				name := c.String("name")
+				eip := c.String("eip")
+				targetType := c.String("target-type")
+				targetName := c.String("target-name")
+				res, err := vpcClient.V1Alpha1().CreateEipAssociateWithResponse(c.Context,
+					&mni_vpc.CreateEipAssociateParams{Authorization: "Bearer " + c.String("token")},
+					mni_vpc.EipAssociate{
+						Name: &name,
+						Eip:  &eip,
+						Target: &struct {
+							Name string `json:"name"`
+							Type string `json:"type"`
+						}{
+							Name: targetName,
+							Type: targetType,
+						},
+					})
 				if err != nil {
 					return err
 				}
@@ -135,9 +131,9 @@ var Command = &cli.Command{
 					}
 
 				} else {
-					image := res.JSON201
+					eipAssociate := res.JSON201
 
-					displaySingle(c, *image)
+					displaySingleEipAssociate(c, eipAssociate)
 
 					return nil
 				}
@@ -153,13 +149,11 @@ var Command = &cli.Command{
 					return nil
 				}
 
-				vmClient, err := commands.NewVmClient(c)
+				vpcClient, err := commands.NewVpcClient(c)
 				if err != nil {
 					return err
 				}
-
-				res, err := vmClient.V1Alpha1().DeleteImageWithResponse(c.Context, c.Args().First(), &v1alpha1.DeleteImageParams{Authorization: "Bearer " + c.String("token")})
-
+				res, err := vpcClient.V1Alpha1().DeleteEipAssociateWithResponse(c.Context, c.Args().First(), &mni_vpc.DeleteEipAssociateParams{Authorization: "Bearer " + c.String("token")})
 				if err != nil {
 					return err
 				}
@@ -172,7 +166,6 @@ var Command = &cli.Command{
 					}
 
 				} else {
-					fmt.Println("Image deleted successfully")
 					return nil
 				}
 			},
@@ -180,67 +173,61 @@ var Command = &cli.Command{
 	},
 }
 
-func displayMultiple(c *cli.Context, images []v1alpha1.Image) {
+func displayMultipleEipAssociate(c *cli.Context, eipAssociates *[]mni_vpc.EipAssociate) {
 	t := table.NewWriter()
 	t.SetOutputMirror(c.App.Writer)
 
-	t.AppendHeader(table.Row{"Name", "Os", "Version", "Public"})
+	t.AppendHeader(table.Row{"Name", "Eip", "Target"})
 
-	for _, image := range images {
-
+	for _, eipAssociate := range *eipAssociates {
 		name := ""
-		os := ""
-		version := ""
-		public := false
+		eip := ""
+		target := ""
 
-		if image.Name != nil {
-			name = *image.Name
+		if eipAssociate.Name != nil {
+			name = *eipAssociate.Name
 		}
-		if image.Os != nil {
-			os = *image.Os
+		if eipAssociate.Eip != nil {
+			eip = *eipAssociate.Eip
 		}
-		if image.Version != nil {
-			version = *image.Version
-		}
-		if image.Public != nil {
-			public = *image.Public
+		if eipAssociate.Target != nil {
+			target = eipAssociate.Target.Type + "/" + eipAssociate.Target.Name
 		}
 
-		t.AppendRow(table.Row{name, os, version, public})
+		t.AppendRow(table.Row{name, eip, target})
 	}
 
 	t.Render()
-
 }
 
-func displaySingle(c *cli.Context, image v1alpha1.Image) {
+func displaySingleEipAssociate(c *cli.Context, eipAssociate *mni_vpc.EipAssociate) {
 	t := table.NewWriter()
 	t.SetOutputMirror(c.App.Writer)
 
 	t.AppendHeader(table.Row{"Field", "Value"})
 
 	name := ""
-	os := ""
-	version := ""
-	public := false
+	eip := ""
+	target := ""
+	createdAt := ""
 
-	if image.Name != nil {
-		name = *image.Name
+	if eipAssociate.Name != nil {
+		name = *eipAssociate.Name
 	}
-	if image.Os != nil {
-		os = *image.Os
+	if eipAssociate.Eip != nil {
+		eip = *eipAssociate.Eip
 	}
-	if image.Version != nil {
-		version = *image.Version
+	if eipAssociate.Target != nil {
+		target = eipAssociate.Target.Type + "/" + eipAssociate.Target.Name
 	}
-	if image.Public != nil {
-		public = *image.Public
+	if eipAssociate.CreatedAt != nil {
+		createdAt = eipAssociate.CreatedAt.String()
 	}
 
 	t.AppendRow(table.Row{"Name", name})
-	t.AppendRow(table.Row{"Os", os})
-	t.AppendRow(table.Row{"Version", version})
-	t.AppendRow(table.Row{"Public", public})
+	t.AppendRow(table.Row{"Eip", eip})
+	t.AppendRow(table.Row{"Target", target})
+	t.AppendRow(table.Row{"CreatedAt", createdAt})
 
 	t.Render()
 }

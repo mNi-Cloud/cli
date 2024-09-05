@@ -10,7 +10,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var Command = &cli.Command{
+var VpcCommand = &cli.Command{
 	Name: "vpcs",
 	Subcommands: []*cli.Command{
 		{
@@ -36,7 +36,7 @@ var Command = &cli.Command{
 				} else {
 					vpcs := res.JSON200
 
-					displayMultiple(c, vpcs)
+					displayMultipleVpc(c, vpcs)
 
 					return nil
 				}
@@ -71,7 +71,7 @@ var Command = &cli.Command{
 				} else {
 					vpc := res.JSON200
 
-					displaySingle(c, vpc)
+					displaySingleVpc(c, vpc)
 
 					return nil
 				}
@@ -108,7 +108,7 @@ var Command = &cli.Command{
 				} else {
 					vpc := res.JSON201
 
-					displaySingle(c, vpc)
+					displaySingleVpc(c, vpc)
 
 					return nil
 				}
@@ -149,7 +149,7 @@ var Command = &cli.Command{
 	},
 }
 
-func displaySingle(c *cli.Context, vpc *mni_vpc.Vpc) {
+func displaySingleVpc(c *cli.Context, vpc *mni_vpc.Vpc) {
 	t := table.NewWriter()
 	t.SetOutputMirror(c.App.Writer)
 
@@ -181,7 +181,7 @@ func displaySingle(c *cli.Context, vpc *mni_vpc.Vpc) {
 	t.Render()
 }
 
-func displayMultiple(c *cli.Context, vpcs *[]mni_vpc.Vpc) {
+func displayMultipleVpc(c *cli.Context, vpcs *[]mni_vpc.Vpc) {
 	t := table.NewWriter()
 	t.SetOutputMirror(c.App.Writer)
 

@@ -1,4 +1,4 @@
-package subnet
+package vpc
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var Command = &cli.Command{
+var SubnetCommand = &cli.Command{
 	Name: "subnets",
 	Subcommands: []*cli.Command{
 		{
@@ -36,7 +36,7 @@ var Command = &cli.Command{
 
 				} else {
 					subnets = res.JSON200
-					displayMultiple(c, subnets)
+					displayMultipleSubnet(c, subnets)
 					return nil
 				}
 			},
@@ -70,7 +70,7 @@ var Command = &cli.Command{
 				} else {
 					subnet := res.JSON200
 
-					displaySingle(c, subnet)
+					displaySingleSubnet(c, subnet)
 
 					return nil
 				}
@@ -121,7 +121,7 @@ var Command = &cli.Command{
 				} else {
 					subnet := res.JSON201
 
-					displaySingle(c, subnet)
+					displaySingleSubnet(c, subnet)
 
 					return nil
 				}
@@ -162,7 +162,7 @@ var Command = &cli.Command{
 	},
 }
 
-func displaySingle(c *cli.Context, subnet *mni_vpc.Subnet) {
+func displaySingleSubnet(c *cli.Context, subnet *mni_vpc.Subnet) {
 	t := table.NewWriter()
 	t.SetOutputMirror(c.App.Writer)
 
@@ -199,7 +199,7 @@ func displaySingle(c *cli.Context, subnet *mni_vpc.Subnet) {
 	t.Render()
 }
 
-func displayMultiple(c *cli.Context, subnets *[]mni_vpc.Subnet) {
+func displayMultipleSubnet(c *cli.Context, subnets *[]mni_vpc.Subnet) {
 	t := table.NewWriter()
 	t.SetOutputMirror(c.App.Writer)
 

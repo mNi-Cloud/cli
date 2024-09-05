@@ -1,33 +1,30 @@
-package volume
+package vpc
 
 import (
 	"fmt"
 	"strconv"
 
 	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/mNi-Cloud/backend/bs/pkg/client/v1alpha1"
+	mni_vpc "github.com/mNi-Cloud/backend/vpc/pkg/client/v1alpha1"
 	"github.com/mNi-Cloud/cli/cmd/mni-client/commands"
 	"github.com/urfave/cli/v2"
 )
 
-var Command = &cli.Command{
-	Name: "volumes",
+var EipCommand = &cli.Command{
+	Name: "eips",
 	Subcommands: []*cli.Command{
 		{
 			Name:   "list",
 			Before: commands.TokenFunc(),
 			Action: func(c *cli.Context) error {
-				bsClient, err := commands.NewBsClient(c)
+				vpcClient, err := commands.NewVpcClient(c)
 				if err != nil {
 					return err
 				}
-
-				res, err := bsClient.V1Alpha1().GetVolumeListWithResponse(c.Context, &v1alpha1.GetVolumeListParams{Authorization: "Bearer " + c.String("token")})
+				res, err := vpcClient.V1Alpha1().GetEipListWithResponse(c.Context, &mni_vpc.GetEipListParams{Authorization: "Bearer " + c.String("token")})
 				if err != nil {
 					return err
 				}
-
-				var subnets *[]v1alpha1.Volume
 
 				if res.StatusCode() != 200 {
 					if res.JSONDefault != nil {
@@ -37,12 +34,12 @@ var Command = &cli.Command{
 					}
 
 				} else {
-					subnets = res.JSON200
+					eips := res.JSON200
+
+					displayMultipleEip(c, eips)
+
+					return nil
 				}
-
-				displayMultiple(c, subnets)
-
-				return nil
 			},
 		},
 		{
@@ -55,11 +52,11 @@ var Command = &cli.Command{
 					return nil
 				}
 
-				bsClient, err := commands.NewBsClient(c)
+				vpcClient, err := commands.NewVpcClient(c)
 				if err != nil {
 					return err
 				}
-				res, err := bsClient.V1Alpha1().GetVolumeWithResponse(c.Context, c.Args().First(), &v1alpha1.GetVolumeParams{Authorization: "Bearer " + c.String("token")})
+				res, err := vpcClient.V1Alpha1().GetEipWithResponse(c.Context, c.Args().First(), &mni_vpc.GetEipParams{Authorization: "Bearer " + c.String("token")})
 				if err != nil {
 					return err
 				}
@@ -72,7 +69,9 @@ var Command = &cli.Command{
 					}
 
 				} else {
-					displaySingle(c, res.JSON200)
+					eip := res.JSON200
+
+					displaySingleEip(c, eip)
 
 					return nil
 				}
@@ -85,38 +84,15 @@ var Command = &cli.Command{
 					Name:     "name",
 					Required: true,
 				},
-				&cli.UintFlag{
-					Name:     "size",
-					Required: true,
-				},
-				&cli.StringFlag{
-					Name:     "source",
-					Required: false,
-				},
 			},
 			Before: commands.TokenFunc(),
 			Action: func(c *cli.Context) error {
-				bsClient, err := commands.NewBsClient(c)
+				vpcClient, err := commands.NewVpcClient(c)
 				if err != nil {
 					return err
 				}
-
 				name := c.String("name")
-				size := fmt.Sprintf("%dGi", c.Uint("size"))
-				var sourceImage *string
-
-				if c.IsSet("source") {
-					tmp := c.String("source")
-					sourceImage = &tmp
-				}
-
-				res, err := bsClient.V1Alpha1().CreateVolumeWithResponse(c.Context, &v1alpha1.CreateVolumeParams{
-					Authorization: "Bearer " + c.String("token"),
-				}, v1alpha1.Volume{
-					Name:         &name,
-					Size:         &size,
-					SourceVolume: sourceImage,
-				})
+				res, err := vpcClient.V1Alpha1().CreateEipWithResponse(c.Context, &mni_vpc.CreateEipParams{Authorization: "Bearer " + c.String("token")}, mni_vpc.Eip{Name: &name})
 				if err != nil {
 					return err
 				}
@@ -129,7 +105,9 @@ var Command = &cli.Command{
 					}
 
 				} else {
-					displaySingle(c, res.JSON201)
+					eip := res.JSON201
+
+					displaySingleEip(c, eip)
 
 					return nil
 				}
@@ -145,12 +123,11 @@ var Command = &cli.Command{
 					return nil
 				}
 
-				bsClient, err := commands.NewBsClient(c)
+				vpcClient, err := commands.NewVpcClient(c)
 				if err != nil {
 					return err
 				}
-
-				res, err := bsClient.V1Alpha1().DeleteVolumeWithResponse(c.Context, c.Args().First(), &v1alpha1.DeleteVolumeParams{Authorization: "Bearer " + c.String("token")})
+				res, err := vpcClient.V1Alpha1().DeleteEipWithResponse(c.Context, c.Args().First(), &mni_vpc.DeleteEipParams{Authorization: "Bearer " + c.String("token")})
 				if err != nil {
 					return err
 				}
@@ -163,7 +140,6 @@ var Command = &cli.Command{
 					}
 
 				} else {
-					fmt.Println("Volume deleted successfully")
 					return nil
 				}
 			},
@@ -171,75 +147,57 @@ var Command = &cli.Command{
 	},
 }
 
-func displayMultiple(c *cli.Context, subnets *[]v1alpha1.Volume) {
+func displayMultipleEip(c *cli.Context, eips *[]mni_vpc.Eip) {
 	t := table.NewWriter()
 	t.SetOutputMirror(c.App.Writer)
 
-	t.AppendHeader(table.Row{"Name", "Size", "Status"})
-	for _, subnet := range *subnets {
+	t.AppendHeader(table.Row{"Name", "Address"})
+
+	for _, eip := range *eips {
 		name := ""
-		size := ""
-		status := ""
+		address := ""
 
-		if subnet.Name != nil {
-			name = *subnet.Name
+		if eip.Name != nil {
+			name = *eip.Name
 		}
-		if subnet.Size != nil {
-			size = *subnet.Size
-		}
-		if subnet.Status != nil {
-			status = *subnet.Status
+		if eip.Address != nil {
+			address = *eip.Address
 		}
 
-		t.AppendRow(table.Row{name, size, status})
+		t.AppendRow(table.Row{name, address})
 	}
 
 	t.Render()
 }
 
-func displaySingle(c *cli.Context, subnet *v1alpha1.Volume) {
+func displaySingleEip(c *cli.Context, eip *mni_vpc.Eip) {
 	t := table.NewWriter()
 	t.SetOutputMirror(c.App.Writer)
 
 	t.AppendHeader(table.Row{"Field", "Value"})
 
 	name := ""
-	size := ""
-	sourceImage := "Blank"
-	status := ""
+	address := ""
 	createdAt := ""
-	isImage := ""
+	isAssociated := ""
 
-	if subnet.Name != nil {
-		name = *subnet.Name
+	if eip.Name != nil {
+		name = *eip.Name
 	}
-
-	if subnet.Size != nil {
-		size = *subnet.Size
+	if eip.Address != nil {
+		address = *eip.Address
 	}
-
-	if subnet.SourceVolume != nil {
-		sourceImage = *subnet.SourceVolume
+	if eip.CreatedAt != nil {
+		createdAt = eip.CreatedAt.String()
 	}
-
-	if subnet.Status != nil {
-		status = *subnet.Status
-	}
-
-	if subnet.CreatedAt != nil {
-		createdAt = subnet.CreatedAt.String()
-	}
-
-	if subnet.IsImage != nil {
-		isImage = strconv.FormatBool(*subnet.IsImage)
+	if eip.IsAssociated != nil {
+		isAssociated = strconv.FormatBool(*eip.IsAssociated)
 	}
 
 	t.AppendRow(table.Row{"Name", name})
-	t.AppendRow(table.Row{"Size", size})
-	t.AppendRow(table.Row{"SourceVolume", sourceImage})
-	t.AppendRow(table.Row{"IsImage?", isImage})
-	t.AppendRow(table.Row{"Status", status})
-	t.AppendRow(table.Row{"Created At", createdAt})
+	t.AppendRow(table.Row{"Address", address})
+	t.AppendRow(table.Row{"CreatedAt", createdAt})
+	t.AppendRow(table.Row{"IsAssociated", isAssociated})
 
 	t.Render()
 }

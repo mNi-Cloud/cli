@@ -1,4 +1,4 @@
-package container
+package ctr
 
 import (
 	"fmt"
@@ -11,8 +11,8 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var Command = &cli.Command{
-	Name: "containers",
+var ContainerPoolCommand = &cli.Command{
+	Name: "containerpools",
 	Subcommands: []*cli.Command{
 		{
 			Name:   "list",
@@ -37,7 +37,7 @@ var Command = &cli.Command{
 
 				} else {
 					containers := res.JSON200
-					return displayMultiple(c, *containers)
+					return displayMultipleContainerPool(c, *containers)
 				}
 			},
 		},
@@ -70,7 +70,7 @@ var Command = &cli.Command{
 
 				} else {
 					container := res.JSON200
-					return displaySingle(c, *container)
+					return displaySingleContainerPool(c, *container)
 				}
 			},
 		},
@@ -82,16 +82,25 @@ var Command = &cli.Command{
 					Required: true,
 				},
 				&cli.StringFlag{
-					Name:     "vpc",
-					Required: true,
+					Name: "vpc",
 				},
 				&cli.StringFlag{
 					Name:     "subnet",
 					Required: true,
 				},
+				&cli.IntFlag{
+					Name:     "replicas",
+					Required: true,
+				},
 				&cli.StringFlag{
 					Name:     "image",
 					Required: true,
+				},
+				&cli.StringSliceFlag{
+					Name: "env",
+				},
+				&cli.StringSliceFlag{
+					Name: "mounts",
 				},
 			},
 			Before: commands.TokenFunc(),
@@ -102,15 +111,65 @@ var Command = &cli.Command{
 				}
 
 				name := c.String("name")
-				vpc := c.String("vpc")
+				rawVpc := c.String("vpc")
+				var vpc *string
+				if rawVpc != "" {
+					vpc = &rawVpc
+				}
 				subnet := c.String("subnet")
+				replicas := c.Int("replicas")
 				image := c.String("image")
+				rawEnv := c.StringSlice("env")
+				rawMounts := c.StringSlice("mounts")
+
+				env := []struct {
+					Name  string `json:"name"`
+					Value string `json:"value"`
+				}{}
+				if rawEnv != nil {
+					for _, entry := range rawEnv {
+						if !strings.Contains(entry, "=") {
+							return cli.Exit("Invalid Env Format (KEY=value)", 1)
+						}
+						split := strings.SplitN(entry, "=", 2)
+						key, value := split[0], split[1]
+
+						env = append(env, struct {
+							Name  string `json:"name"`
+							Value string `json:"value"`
+						}{Name: key, Value: value})
+					}
+
+				}
+
+				mounts := []mni_ctr.ContainerVolumeMount{}
+				if rawMounts != nil {
+					for _, entry := range rawMounts {
+						split := strings.SplitN(entry, ":", 3)
+						if len(split) < 3 {
+							return cli.Exit("Invalid VolumeMount Format (name:volume:path)", 1)
+						}
+						name, volume, path := split[0], split[1], split[2]
+
+						mounts = append(mounts, mni_ctr.ContainerVolumeMount{
+							Name:      name,
+							Volume:    volume,
+							MountPath: path,
+						})
+					}
+
+				}
 
 				res, err := ctrClient.V1Alpha1().CreateContainerPoolWithResponse(c.Context, &mni_ctr.CreateContainerPoolParams{Authorization: "Bearer " + c.String("token")}, mni_ctr.ContainerPool{
-					Name:   &name,
-					Vpc:    &vpc,
-					Subnet: &subnet,
-					Image:  &image,
+					Name:     &name,
+					Vpc:      vpc,
+					Subnet:   &subnet,
+					Replicas: &replicas,
+					Spec: mni_ctr.ContainerSpec{
+						Image:        &image,
+						Env:          &env,
+						VolumeMounts: &mounts,
+					},
 				})
 				if err != nil {
 					return err
@@ -125,7 +184,7 @@ var Command = &cli.Command{
 
 				} else {
 					container := res.JSON201
-					return displaySingle(c, *container)
+					return displaySingleContainerPool(c, *container)
 				}
 			},
 		},
@@ -165,7 +224,47 @@ var Command = &cli.Command{
 	},
 }
 
-func displaySingle(c *cli.Context, container mni_ctr.ContainerPool) error {
+func displayContainerSpecForSingle(t table.Writer, spec mni_ctr.ContainerSpec) {
+	image := ""
+
+	if spec.Image != nil {
+		image = *spec.Image
+	}
+
+	t.AppendRow(table.Row{"Image", image})
+
+	if spec.Env == nil {
+		t.AppendRow(table.Row{"Env", ""})
+	} else {
+		first := true
+		for _, entry := range *spec.Env {
+			entryString := entry.Name + "=" + entry.Value
+			if first {
+				t.AppendRow(table.Row{"Env", entryString})
+				first = false
+			} else {
+				t.AppendRow(table.Row{"", entryString})
+			}
+		}
+	}
+
+	if spec.VolumeMounts == nil {
+		t.AppendRow(table.Row{"VolumeMount", ""})
+	} else {
+		first := true
+		for _, volumeMount := range *spec.VolumeMounts {
+			entryString := "(" + volumeMount.Name + ")" + volumeMount.Volume + ":" + volumeMount.MountPath
+			if first {
+				t.AppendRow(table.Row{"VolumeMount", entryString})
+				first = false
+			} else {
+				t.AppendRow(table.Row{"", entryString})
+			}
+		}
+	}
+}
+
+func displaySingleContainerPool(c *cli.Context, container mni_ctr.ContainerPool) error {
 	t := table.NewWriter()
 	t.SetOutputMirror(c.App.Writer)
 
@@ -174,8 +273,8 @@ func displaySingle(c *cli.Context, container mni_ctr.ContainerPool) error {
 	name := ""
 	vpc := ""
 	subnet := ""
-	image := ""
 	replicas := ""
+	instances := ""
 	createdAt := ""
 
 	if container.Name != nil {
@@ -190,12 +289,12 @@ func displaySingle(c *cli.Context, container mni_ctr.ContainerPool) error {
 		subnet = *container.Subnet
 	}
 
-	if container.Image != nil {
-		image = *container.Image
-	}
-
 	if container.Replicas != nil {
 		replicas = strconv.Itoa(*container.Replicas)
+	}
+
+	if container.Instances != nil {
+		instances = strings.Join(*container.Instances, ", ")
 	}
 
 	if container.CreatedAt != nil {
@@ -205,61 +304,28 @@ func displaySingle(c *cli.Context, container mni_ctr.ContainerPool) error {
 	t.AppendRow(table.Row{"Name", name})
 	t.AppendRow(table.Row{"Vpc", vpc})
 	t.AppendRow(table.Row{"Subnet", subnet})
-	t.AppendRow(table.Row{"Image", image})
+	displayContainerSpecForSingle(t, container.Spec)
 	t.AppendRow(table.Row{"Replicas", replicas})
+	t.AppendRow(table.Row{"Instances", instances})
 	t.AppendRow(table.Row{"CreatedAt", createdAt})
-
-	if container.Instances != nil && len(*container.Instances) > 0 {
-		ctrClient, err := commands.NewCtrClient(c)
-		if err != nil {
-			return err
-		}
-		for _, instanceName := range *container.Instances {
-			t.AppendRow(table.Row{"", ""})
-			res, err := ctrClient.V1Alpha1().GetContainerWithResponse(c.Context, instanceName, &mni_ctr.GetContainerParams{Authorization: "Bearer " + c.String("token")})
-			if err != nil {
-				return err
-			}
-
-			if res.StatusCode() != 200 {
-				t.AppendRow(table.Row{instanceName, fmt.Sprintf("Error %d: %s, %s", res.StatusCode(), res.JSONDefault.Resource, res.JSONDefault.Message)})
-			} else {
-				instance := res.JSON200
-
-				status := ""
-				createdAt := ""
-
-				if instance.Status != nil {
-					status = *instance.Status
-				}
-				if instance.CreatedAt != nil {
-					createdAt = instance.CreatedAt.String()
-				}
-
-				t.AppendRow(table.Row{"", "--" + *instance.Name})
-				t.AppendRow(table.Row{"Status", status})
-				t.AppendRow(table.Row{"CreatedAt", createdAt})
-			}
-		}
-	}
 
 	t.Render()
 
 	return nil
 }
 
-func displayMultiple(c *cli.Context, containers []mni_ctr.ContainerPool) error {
+func displayMultipleContainerPool(c *cli.Context, containers []mni_ctr.ContainerPool) error {
 	t := table.NewWriter()
 	t.SetOutputMirror(c.App.Writer)
 
-	t.AppendHeader(table.Row{"Name", "Vpc", "Subnet", "Image", "Status"})
+	t.AppendHeader(table.Row{"Name", "Vpc", "Subnet", "Image", "Instances"})
 
 	for _, container := range containers {
 		name := ""
 		vpc := ""
 		subnet := ""
 		image := ""
-		status := "Not Running"
+		instances := ""
 
 		if container.Name != nil {
 			name = *container.Name
@@ -273,39 +339,15 @@ func displayMultiple(c *cli.Context, containers []mni_ctr.ContainerPool) error {
 			subnet = *container.Subnet
 		}
 
-		if container.Image != nil {
-			image = *container.Image
+		if container.Spec.Image != nil {
+			image = *container.Spec.Image
 		}
 
-		if container.Instances != nil && len(*container.Instances) > 0 {
-			statusList := []string{}
-			for _, instanceName := range *container.Instances {
-				ctrClient, err := commands.NewCtrClient(c)
-				if err != nil {
-					return err
-				}
-
-				res, err := ctrClient.V1Alpha1().GetContainerWithResponse(c.Context, instanceName, &mni_ctr.GetContainerParams{Authorization: "Bearer " + c.String("token")})
-				if err != nil {
-					return err
-				}
-
-				if res.StatusCode() == 404 {
-					statusList = append(statusList, "Unknown")
-				} else if res.StatusCode() != 200 {
-					if res.JSONDefault != nil {
-						return cli.Exit(fmt.Sprintf("Error %d: %s %s", res.StatusCode(), res.JSONDefault.Resource, res.JSONDefault.Message), 1)
-					} else {
-						return cli.Exit(fmt.Sprintf("Error %d: %s", res.StatusCode(), string(res.Body)), 1)
-					}
-
-				} else {
-					statusList = append(statusList, *res.JSON200.Status)
-				}
-			}
-			status = strings.Join(statusList, ", ")
+		if container.Instances != nil {
+			instances = strings.Join(*container.Instances, ", ")
 		}
-		t.AppendRow(table.Row{name, vpc, subnet, image, status})
+
+		t.AppendRow(table.Row{name, vpc, subnet, image, instances})
 	}
 
 	t.Render()
