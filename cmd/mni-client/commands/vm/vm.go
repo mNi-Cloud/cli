@@ -1,20 +1,28 @@
 package vm
 
 import (
+	"bufio"
 	"encoding/base64"
 	"fmt"
+	"io"
+	"log"
+	"net"
+	"net/http"
 	"os"
-	"strconv"
+	"os/signal"
 	"strings"
+	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/jedib0t/go-pretty/v6/table"
 	mni_vm "github.com/mNi-Cloud/backend/vm/pkg/client/v1alpha1"
 	"github.com/mNi-Cloud/cli/cmd/mni-client/commands"
 	"github.com/urfave/cli/v2"
+	"golang.org/x/term"
 )
 
-var VirtualMachinePoolCommand = &cli.Command{
-	Name: "vmpools",
+var VirtualMachineCommand = &cli.Command{
+	Name: "vms",
 	Subcommands: []*cli.Command{
 		{
 			Name:   "list",
@@ -24,7 +32,8 @@ var VirtualMachinePoolCommand = &cli.Command{
 				if err != nil {
 					return err
 				}
-				res, err := vmClient.V1Alpha1().GetVmPoolListWithResponse(c.Context, &mni_vm.GetVmPoolListParams{Authorization: "Bearer " + c.String("token")})
+
+				res, err := vmClient.V1Alpha1().GetVmListWithResponse(c.Context, &mni_vm.GetVmListParams{Authorization: "Bearer " + c.String("token")})
 				if err != nil {
 					return err
 				}
@@ -35,11 +44,9 @@ var VirtualMachinePoolCommand = &cli.Command{
 					} else {
 						return cli.Exit(fmt.Sprintf("Error %d: %s", res.StatusCode(), string(res.Body)), 1)
 					}
-
 				} else {
 					vms := res.JSON200
-
-					return displayMultipleVirtualMachinePool(c, *vms)
+					return displayMultipleVirtualMachine(c, *vms)
 				}
 			},
 		},
@@ -58,7 +65,7 @@ var VirtualMachinePoolCommand = &cli.Command{
 					return err
 				}
 
-				res, err := vmClient.V1Alpha1().GetVmPoolWithResponse(c.Context, c.Args().First(), &mni_vm.GetVmPoolParams{Authorization: "Bearer " + c.String("token")})
+				res, err := vmClient.V1Alpha1().GetVmWithResponse(c.Context, c.Args().First(), &mni_vm.GetVmParams{Authorization: "Bearer " + c.String("token")})
 				if err != nil {
 					return err
 				}
@@ -69,11 +76,9 @@ var VirtualMachinePoolCommand = &cli.Command{
 					} else {
 						return cli.Exit(fmt.Sprintf("Error %d: %s", res.StatusCode(), string(res.Body)), 1)
 					}
-
 				} else {
 					vm := res.JSON200
-
-					return displaySingleVirtualMachinePool(c, *vm)
+					return displaySingleVirtualMachine(c, *vm)
 				}
 			},
 		},
@@ -101,10 +106,6 @@ var VirtualMachinePoolCommand = &cli.Command{
 				},
 				&cli.StringFlag{
 					Name:     "image",
-					Required: true,
-				},
-				&cli.IntFlag{
-					Name:     "replicas",
 					Required: true,
 				},
 				&cli.StringFlag{
@@ -137,7 +138,6 @@ var VirtualMachinePoolCommand = &cli.Command{
 				cores := c.Int("cores")
 				memory := c.String("memory")
 				image := c.String("image")
-				replicas := c.Int("replicas")
 				volumeSize := c.String("volume-size")
 				additionalVolumes := c.StringSlice("additional-volume")
 
@@ -177,11 +177,10 @@ var VirtualMachinePoolCommand = &cli.Command{
 					}
 				}
 
-				res, err := vmClient.V1Alpha1().CreateVmPoolWithResponse(c.Context, &mni_vm.CreateVmPoolParams{Authorization: "Bearer " + c.String("token")}, mni_vm.VirtualMachinePool{
-					Name:     &name,
-					Vpc:      vpc,
-					Subnet:   &subnet,
-					Replicas: &replicas,
+				res, err := vmClient.V1Alpha1().CreateVmWithResponse(c.Context, &mni_vm.CreateVmParams{Authorization: "Bearer " + c.String("token")}, mni_vm.VirtualMachine{
+					Name:   &name,
+					Vpc:    vpc,
+					Subnet: &subnet,
 					Spec: mni_vm.VirtualMachineSpec{
 						Cores:           &cores,
 						Memory:          &memory,
@@ -200,11 +199,9 @@ var VirtualMachinePoolCommand = &cli.Command{
 					} else {
 						return cli.Exit(fmt.Sprintf("Error %d: %s", res.StatusCode(), string(res.Body)), 1)
 					}
-
 				} else {
 					vm := res.JSON201
-
-					return displaySingleVirtualMachinePool(c, *vm)
+					return displaySingleVirtualMachine(c, *vm)
 				}
 			},
 		},
@@ -223,7 +220,7 @@ var VirtualMachinePoolCommand = &cli.Command{
 					return err
 				}
 
-				res, err := vmClient.V1Alpha1().DeleteVmPoolWithResponse(c.Context, c.Args().First(), &mni_vm.DeleteVmPoolParams{Authorization: "Bearer " + c.String("token")})
+				res, err := vmClient.V1Alpha1().DeleteVmWithResponse(c.Context, c.Args().First(), &mni_vm.DeleteVmParams{Authorization: "Bearer " + c.String("token")})
 				if err != nil {
 					return err
 				}
@@ -234,9 +231,8 @@ var VirtualMachinePoolCommand = &cli.Command{
 					} else {
 						return cli.Exit(fmt.Sprintf("Error %d: %s", res.StatusCode(), string(res.Body)), 1)
 					}
-
 				} else {
-					fmt.Println("VM deleted successfully")
+					fmt.Println("Vm deleted successfully")
 					return nil
 				}
 			},
@@ -256,7 +252,7 @@ var VirtualMachinePoolCommand = &cli.Command{
 					return err
 				}
 
-				res, err := vmClient.V1Alpha1().StartVmPoolWithResponse(c.Context, c.Args().First(), &mni_vm.StartVmPoolParams{Authorization: "Bearer " + c.String("token")})
+				res, err := vmClient.V1Alpha1().StartVmWithResponse(c.Context, c.Args().First(), &mni_vm.StartVmParams{Authorization: "Bearer " + c.String("token")})
 				if err != nil {
 					return err
 				}
@@ -267,9 +263,8 @@ var VirtualMachinePoolCommand = &cli.Command{
 					} else {
 						return cli.Exit(fmt.Sprintf("Error %d: %s", res.StatusCode(), string(res.Body)), 1)
 					}
-
 				} else {
-					fmt.Println("VM started successfully")
+					fmt.Println("Vm started successfully")
 					return nil
 				}
 			},
@@ -289,7 +284,7 @@ var VirtualMachinePoolCommand = &cli.Command{
 					return err
 				}
 
-				res, err := vmClient.V1Alpha1().StopVmPoolWithResponse(c.Context, c.Args().First(), &mni_vm.StopVmPoolParams{Authorization: "Bearer " + c.String("token")})
+				res, err := vmClient.V1Alpha1().StopVmWithResponse(c.Context, c.Args().First(), &mni_vm.StopVmParams{Authorization: "Bearer " + c.String("token")})
 				if err != nil {
 					return err
 				}
@@ -300,64 +295,232 @@ var VirtualMachinePoolCommand = &cli.Command{
 					} else {
 						return cli.Exit(fmt.Sprintf("Error %d: %s", res.StatusCode(), string(res.Body)), 1)
 					}
-
 				} else {
-					fmt.Println("VM stopped successfully")
+					fmt.Println("Vm stopped successfully")
 					return nil
 				}
+			},
+		},
+		{
+			Name:      "reboot",
+			ArgsUsage: "<name>",
+			Before:    commands.TokenFunc(),
+			Action: func(c *cli.Context) error {
+				if c.NArg() != 1 {
+					cli.ShowSubcommandHelpAndExit(c, 1)
+					return nil
+				}
+
+				vmClient, err := commands.NewVmClient(c)
+				if err != nil {
+					return err
+				}
+
+				res, err := vmClient.V1Alpha1().SoftRebootVmWithResponse(c.Context, c.Args().First(), &mni_vm.SoftRebootVmParams{Authorization: "Bearer " + c.String("token")})
+				if err != nil {
+					return err
+				}
+
+				if res.StatusCode() != 200 {
+					if res.JSONDefault != nil {
+						return cli.Exit(fmt.Sprintf("Error %d: %s %s", res.StatusCode(), res.JSONDefault.Resource, res.JSONDefault.Message), 1)
+					} else {
+						return cli.Exit(fmt.Sprintf("Error %d: %s", res.StatusCode(), string(res.Body)), 1)
+					}
+				} else {
+					fmt.Println("Vm rebooted successfully")
+					return nil
+				}
+			},
+		},
+		{
+			Name:      "serial",
+			ArgsUsage: "<name>",
+			Before:    commands.TokenFunc(),
+			Action: func(ctx *cli.Context) error {
+				if ctx.NArg() != 1 {
+					cli.ShowSubcommandHelpAndExit(ctx, 1)
+					return nil
+				}
+
+				interrupt := make(chan os.Signal, 1)
+				signal.Notify(interrupt, os.Interrupt)
+
+				c, _, err := websocket.DefaultDialer.Dial(fmt.Sprintf("%s/v1alpha1/vms/%s/serial", strings.Replace(ctx.String("vm-endpoint"), "http", "ws", 1), ctx.Args().First()), http.Header{"Authorization": []string{"Bearer " + ctx.String("token")}})
+				if err != nil {
+					log.Fatal("dial:", err)
+				}
+
+				log.Println("Connected to serial console.")
+				log.Println("Press Ctrl+] to exit.")
+				defer c.Close()
+
+				done := make(chan struct{})
+				go func() {
+					defer close(done)
+					for {
+						_, message, err := c.ReadMessage()
+						if err != nil {
+							log.Println("read:", err)
+							return
+						}
+						fmt.Print(string(message[:]))
+					}
+				}()
+
+				fd := int(os.Stdin.Fd())
+				oldState, err := term.MakeRaw(fd)
+				if err != nil {
+					return err
+				}
+				defer term.Restore(fd, oldState)
+
+				readStop := make(chan error)
+
+				go func() {
+					reader := bufio.NewReader(os.Stdin)
+					for {
+						buf, err := reader.ReadByte()
+						if err != nil && err != io.EOF {
+							readStop <- err
+							return
+						}
+						if err == io.EOF {
+							return
+						}
+
+						if buf == 29 {
+							interrupt <- os.Interrupt
+							return
+						}
+
+						err = c.WriteMessage(websocket.TextMessage, []byte{buf})
+						if err != nil {
+							readStop <- err
+							return
+						}
+
+					}
+				}()
+
+				for {
+					select {
+					case <-done:
+						return nil
+					case <-interrupt:
+
+						fmt.Println("\nDisconnecting...")
+
+						select {
+						case <-done:
+						case <-time.After(time.Second):
+						}
+						return nil
+					case err = <-readStop:
+						if err != nil {
+							return cli.Exit(err.Error(), 1)
+						}
+					}
+				}
+			},
+		},
+		{
+			Name:      "vnc",
+			ArgsUsage: "<name>",
+			Flags:     []cli.Flag{},
+			Before:    commands.TokenFunc(),
+			Action: func(ctx *cli.Context) error {
+				if ctx.NArg() != 1 {
+					cli.ShowSubcommandHelpAndExit(ctx, 1)
+					return nil
+				}
+
+				c, _, err := websocket.DefaultDialer.Dial(fmt.Sprintf("%s/v1alpha1/vms/%s/vnc", strings.Replace(ctx.String("vm-endpoint"), "http", "ws", 1), ctx.Args().First()), http.Header{"Authorization": []string{"Bearer " + ctx.String("token")}})
+				if err != nil {
+					log.Fatal("dial:", err)
+				}
+				defer c.Close()
+
+				lnAddr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
+				ln, err := net.ListenTCP("tcp", lnAddr)
+				defer ln.Close()
+
+				listenResChan := make(chan error)
+
+				go func() {
+					fd, err := ln.Accept()
+					if err != nil {
+						listenResChan <- err
+					}
+					defer fd.Close()
+
+					readTcp := make(chan error)
+					readWebsocket := make(chan error)
+
+					go func() {
+						for {
+							_, data, err := c.ReadMessage()
+							if err != nil {
+								readWebsocket <- err
+								return
+							}
+
+							_, err = fd.Write(data)
+							if err != nil {
+								readWebsocket <- err
+								return
+							}
+						}
+					}()
+
+					go func() {
+						buffer := make([]byte, 65536)
+						for {
+							bytesRead, err := fd.Read(buffer)
+
+							if err != nil {
+								readTcp <- err
+								return
+							}
+
+							if err := c.WriteMessage(websocket.BinaryMessage, buffer[:bytesRead]); err != nil {
+								readTcp <- err
+								return
+							}
+						}
+					}()
+
+					select {
+					case err := <-readTcp:
+						if err != nil {
+							listenResChan <- err
+							return
+						}
+					case err := <-readWebsocket:
+						if err != nil {
+							listenResChan <- err
+							return
+						}
+					}
+					listenResChan <- nil
+					return
+				}()
+
+				port := ln.Addr().(*net.TCPAddr).Port
+				fmt.Printf("VNC server started on 127.0.0.1:%d\n", port)
+
+				err = <-listenResChan
+				if err != nil {
+					return cli.Exit(err.Error(), 1)
+				}
+
+				return nil
 			},
 		},
 	},
 }
 
-func displayVirtualMachineSpecForSingle(t table.Writer, spec mni_vm.VirtualMachineSpec) {
-	cores := ""
-	memory := ""
-	image := ""
-	volumeSize := ""
-
-	if spec.Cores != nil {
-		cores = strconv.FormatInt(int64(*spec.Cores), 10)
-	}
-
-	if spec.Memory != nil {
-		memory = *spec.Memory
-	}
-
-	if spec.Image != nil {
-		image = *spec.Image
-	}
-
-	if spec.VolumeSize != nil {
-		volumeSize = *spec.VolumeSize
-	}
-
-	t.AppendRow(table.Row{"Cores", cores})
-	t.AppendRow(table.Row{"Memory", memory})
-	t.AppendRow(table.Row{"Image", image})
-	t.AppendRow(table.Row{"VolumeSize", volumeSize})
-
-	if spec.AdditionalDisks != nil {
-		first := true
-		for _, disk := range *spec.AdditionalDisks {
-			var diskString string
-			if disk.VolumeSource != nil {
-				diskString = disk.Name + " : Volume " + disk.VolumeSource.Name
-			} else if disk.CloudInitSource != nil {
-				diskString = disk.Name + " : CloudInit " + disk.CloudInitSource.UserData
-			}
-
-			if first {
-				t.AppendRow(table.Row{"AdditionalDisk", diskString})
-				first = false
-			} else {
-				t.AppendRow(table.Row{"", diskString})
-			}
-		}
-	}
-}
-
-func displaySingleVirtualMachinePool(c *cli.Context, vm mni_vm.VirtualMachinePool) error {
+func displaySingleVirtualMachine(c *cli.Context, vm mni_vm.VirtualMachine) error {
 	t := table.NewWriter()
 	t.SetOutputMirror(c.App.Writer)
 
@@ -366,29 +529,30 @@ func displaySingleVirtualMachinePool(c *cli.Context, vm mni_vm.VirtualMachinePoo
 	name := ""
 	vpc := ""
 	subnet := ""
-	replicas := 0
-	running := ""
-	instances := ""
+	pool := ""
+	status := ""
 	createdAt := ""
 
 	if vm.Name != nil {
 		name = *vm.Name
 	}
+
 	if vm.Vpc != nil {
 		vpc = *vm.Vpc
 	}
+
 	if vm.Subnet != nil {
 		subnet = *vm.Subnet
 	}
-	if vm.Replicas != nil {
-		replicas = *vm.Replicas
+
+	if vm.Pool != nil {
+		pool = *vm.Pool
 	}
-	if vm.Running != nil {
-		running = strconv.FormatBool(*vm.Running)
+
+	if vm.Status != nil {
+		status = *vm.Status
 	}
-	if vm.Instances != nil {
-		instances = strings.Join(*vm.Instances, ", ")
-	}
+
 	if vm.CreatedAt != nil {
 		createdAt = vm.CreatedAt.String()
 	}
@@ -396,48 +560,55 @@ func displaySingleVirtualMachinePool(c *cli.Context, vm mni_vm.VirtualMachinePoo
 	t.AppendRow(table.Row{"Name", name})
 	t.AppendRow(table.Row{"Vpc", vpc})
 	t.AppendRow(table.Row{"Subnet", subnet})
+	t.AppendRow(table.Row{"Pool", pool})
 	displayVirtualMachineSpecForSingle(t, vm.Spec)
-	t.AppendRow(table.Row{"Replicas", replicas})
-	t.AppendRow(table.Row{"Running", running})
-	t.AppendRow(table.Row{"Instances", instances})
-	t.AppendRow(table.Row{"CreatedAt", createdAt})
+	t.AppendRow(table.Row{"Status", status})
+	t.AppendRow(table.Row{"Created At", createdAt})
 
 	t.Render()
 
 	return nil
 }
 
-func displayMultipleVirtualMachinePool(c *cli.Context, vms []mni_vm.VirtualMachinePool) error {
+func displayMultipleVirtualMachine(c *cli.Context, vms []mni_vm.VirtualMachine) error {
 	t := table.NewWriter()
 	t.SetOutputMirror(c.App.Writer)
 
-	t.AppendHeader(table.Row{"Name", "Vpc", "Subnet", "Running", "Instances"})
+	t.AppendHeader(table.Row{"Name", "Vpc", "Subnet", "Pool", "Status", "CreatedAt"})
 
 	for _, vm := range vms {
-
 		name := ""
 		vpc := ""
 		subnet := ""
-		running := ""
-		instances := ""
+		pool := ""
+		status := ""
+		createdAt := ""
 
 		if vm.Name != nil {
 			name = *vm.Name
 		}
+
 		if vm.Vpc != nil {
 			vpc = *vm.Vpc
 		}
+
 		if vm.Subnet != nil {
 			subnet = *vm.Subnet
 		}
-		if vm.Running != nil {
-			running = strconv.FormatBool(*vm.Running)
-		}
-		if vm.Instances != nil {
-			instances = strings.Join(*vm.Instances, ", ")
+
+		if vm.Pool != nil {
+			pool = *vm.Pool
 		}
 
-		t.AppendRow(table.Row{name, vpc, subnet, running, instances})
+		if vm.Status != nil {
+			status = *vm.Status
+		}
+
+		if vm.CreatedAt != nil {
+			createdAt = vm.CreatedAt.String()
+		}
+
+		t.AppendRow(table.Row{name, vpc, subnet, pool, status, createdAt})
 	}
 
 	t.Render()

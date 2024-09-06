@@ -11,7 +11,7 @@ require (
 	github.com/mNi-Cloud/backend/auth v0.0.0-20240905053311-72241b9763a7
 	github.com/mNi-Cloud/backend/bs v0.0.0-20240905053311-72241b9763a7
 	github.com/mNi-Cloud/backend/ctr v0.0.0-20240905053311-72241b9763a7
-	github.com/mNi-Cloud/backend/vm v0.0.0-20240905122804-58ecf0c296bc
+	github.com/mNi-Cloud/backend/vm v0.0.0-20240906015642-3371804cc41d
 	github.com/mNi-Cloud/backend/vpc v0.0.0-20240905053311-72241b9763a7
 	github.com/urfave/cli/v2 v2.27.3
 	golang.org/x/oauth2 v0.21.0

@@ -30,10 +30,8 @@ github.com/mNi-Cloud/backend/common v0.0.0-20240821131607-a5e5c124ab47 h1:De3OPr
 github.com/mNi-Cloud/backend/common v0.0.0-20240821131607-a5e5c124ab47/go.mod h1:Wu1isH2OsSdPPIRFu5vI8zhHSCxARKBmG6EZZ78sP+w=
 github.com/mNi-Cloud/backend/ctr v0.0.0-20240905053311-72241b9763a7 h1:UL3hzpCrS7Qs+STArdbEMxJ395Yg/ihwVsStrmD8EOo=
 github.com/mNi-Cloud/backend/ctr v0.0.0-20240905053311-72241b9763a7/go.mod h1:/tIbsUsRLY96BmB/C1Zux0Q88XLWgyInRyHe75+9SxM=
-github.com/mNi-Cloud/backend/vm v0.0.0-20240905053311-72241b9763a7 h1:7gzc3aKyz/oSd7uNsTPh+RiM6JhX/j2HnEMWyS81rQQ=
-github.com/mNi-Cloud/backend/vm v0.0.0-20240905053311-72241b9763a7/go.mod h1:aXu77x68yRFYAvb58uzmz5rvF3zYqT7Z/EU/Cg984tc=
-github.com/mNi-Cloud/backend/vm v0.0.0-20240905122804-58ecf0c296bc h1:fQD4OK0ZdgLPKkQAY1wpZoSaPXQLQfVQUtdJ3qbEIi8=
-github.com/mNi-Cloud/backend/vm v0.0.0-20240905122804-58ecf0c296bc/go.mod h1:D59epMdRwru0sQNI16bAXNRRX7YPa5kcLaZWsir0oCM=
+github.com/mNi-Cloud/backend/vm v0.0.0-20240906015642-3371804cc41d h1:TbEO9atOpqedEjugHlMon9Ops8Utth/8EVBLXVDnvyM=
+github.com/mNi-Cloud/backend/vm v0.0.0-20240906015642-3371804cc41d/go.mod h1:5JqL8gI5fIKTy5dKHfzeifbein4Qpiz3fZrjPAltC3c=
 github.com/mNi-Cloud/backend/vpc v0.0.0-20240905053311-72241b9763a7 h1:kv7vR7fhsF+4AoF2Q9LN1xIKMNo+ceebYMS2lDXXoOc=
 github.com/mNi-Cloud/backend/vpc v0.0.0-20240905053311-72241b9763a7/go.mod h1:d81pgWh48MNkTDPrE9fwKoAjjN54DqRoNLshorrZflA=
 github.com/mattn/go-colorable v0.1.13 h1:fFA4WZxdEF4tXPZVKMLwD8oUnCTTo08duU7wxecdEvA=

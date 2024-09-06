@@ -73,6 +73,7 @@ func New() *cli.App {
 			Name: "vm",
 			Subcommands: []*cli.Command{
 				vm.VirtualMachinePoolCommand,
+				vm.VirtualMachineCommand,
 				vm.ImageCommand,
 			},
 		},
