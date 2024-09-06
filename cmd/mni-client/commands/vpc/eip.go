@@ -151,11 +151,12 @@ func displayMultipleEip(c *cli.Context, eips *[]mni_vpc.Eip) {
 	t := table.NewWriter()
 	t.SetOutputMirror(c.App.Writer)
 
-	t.AppendHeader(table.Row{"Name", "Address"})
+	t.AppendHeader(table.Row{"Name", "Address", "IsAssociated"})
 
 	for _, eip := range *eips {
 		name := ""
 		address := ""
+		isAssociated := ""
 
 		if eip.Name != nil {
 			name = *eip.Name
@@ -163,8 +164,11 @@ func displayMultipleEip(c *cli.Context, eips *[]mni_vpc.Eip) {
 		if eip.Address != nil {
 			address = *eip.Address
 		}
+		if eip.IsAssociated != nil {
+			isAssociated = strconv.FormatBool(*eip.IsAssociated)
+		}
 
-		t.AppendRow(table.Row{name, address})
+		t.AppendRow(table.Row{name, address, isAssociated})
 	}
 
 	t.Render()
