@@ -86,6 +86,7 @@ func New() *cli.App {
 			Name: "ctr",
 			Subcommands: []*cli.Command{
 				ctr.ContainerPoolCommand,
+				ctr.ContainerCommand,
 			},
 		},
 		login.Command,
