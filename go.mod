@@ -9,7 +9,7 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.5.9
 	github.com/labstack/gommon v0.4.2
 	github.com/mNi-Cloud/backend/auth v0.0.0-20240905053311-72241b9763a7
-	github.com/mNi-Cloud/backend/bs v0.0.0-20240905053311-72241b9763a7
+	github.com/mNi-Cloud/backend/bs v0.0.0-20240906024440-642c97cfaa95
 	github.com/mNi-Cloud/backend/ctr v0.0.0-20240905053311-72241b9763a7
 	github.com/mNi-Cloud/backend/vm v0.0.0-20240906015642-3371804cc41d
 	github.com/mNi-Cloud/backend/vpc v0.0.0-20240905053311-72241b9763a7

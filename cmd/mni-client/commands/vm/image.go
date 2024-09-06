@@ -89,7 +89,7 @@ var ImageCommand = &cli.Command{
 			Name: "create",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:     "volume",
+					Name:     "name",
 					Required: true,
 				},
 				&cli.StringFlag{
@@ -101,8 +101,16 @@ var ImageCommand = &cli.Command{
 					Required: true,
 				},
 				&cli.BoolFlag{
+					Name:  "gui",
+					Value: false,
+				},
+				&cli.BoolFlag{
 					Name:  "public",
 					Value: false,
+				},
+				&cli.StringFlag{
+					Name:     "source-vm",
+					Required: true,
 				},
 			},
 			Before: commands.TokenFunc(),
@@ -112,16 +120,20 @@ var ImageCommand = &cli.Command{
 					return err
 				}
 
-				volume := c.String("volume")
+				volume := c.String("name")
 				os := c.String("os")
 				version := c.String("version")
+				gui := c.Bool("gui")
 				public := c.Bool("public")
+				sourceVm := c.String("source-vm")
 
 				res, err := vmClient.V1Alpha1().CreateImageWithResponse(c.Context, &v1alpha1.CreateImageParams{Authorization: "Bearer " + c.String("token")}, v1alpha1.Image{
-					Volume:  &volume,
-					Os:      &os,
-					Version: &version,
-					Public:  &public,
+					Volume:   &volume,
+					Os:       &os,
+					Version:  &version,
+					Gui:      &gui,
+					Public:   &public,
+					SourceVm: &sourceVm,
 				})
 				if err != nil {
 					return err
