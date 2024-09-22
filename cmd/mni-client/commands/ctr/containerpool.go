@@ -88,6 +88,14 @@ var ContainerPoolCommand = &cli.Command{
 					Name:     "subnet",
 					Required: true,
 				},
+				&cli.StringFlag{
+					Name:     "cores",
+					Required: true,
+				},
+				&cli.StringFlag{
+					Name:     "memory",
+					Required: true,
+				},
 				&cli.IntFlag{
 					Name:     "replicas",
 					Required: true,
@@ -121,6 +129,8 @@ var ContainerPoolCommand = &cli.Command{
 				image := c.String("image")
 				rawEnv := c.StringSlice("env")
 				rawMounts := c.StringSlice("mounts")
+				cores := c.String("cores")
+				memory := c.String("memory")
 
 				env := []struct {
 					Name  string `json:"name"`
@@ -169,6 +179,8 @@ var ContainerPoolCommand = &cli.Command{
 						Image:        &image,
 						Env:          &env,
 						VolumeMounts: &mounts,
+						Cores:        &cores,
+						Memory:       &memory,
 					},
 				})
 				if err != nil {
@@ -226,12 +238,22 @@ var ContainerPoolCommand = &cli.Command{
 
 func displayContainerSpecForSingle(t table.Writer, spec mni_ctr.ContainerSpec) {
 	image := ""
+	cores := ""
+	memory := ""
 
 	if spec.Image != nil {
 		image = *spec.Image
 	}
+	if spec.Cores != nil {
+		cores = *spec.Cores
+	}
+	if spec.Memory != nil {
+		memory = *spec.Memory
+	}
 
 	t.AppendRow(table.Row{"Image", image})
+	t.AppendRow(table.Row{"Cores", cores})
+	t.AppendRow(table.Row{"Memory", memory})
 
 	if spec.Env == nil {
 		t.AppendRow(table.Row{"Env", ""})

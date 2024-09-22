@@ -89,6 +89,14 @@ var ContainerCommand = &cli.Command{
 					Name:     "image",
 					Required: true,
 				},
+				&cli.StringFlag{
+					Name:     "cores",
+					Required: true,
+				},
+				&cli.StringFlag{
+					Name:     "memory",
+					Required: true,
+				},
 				&cli.StringSliceFlag{
 					Name: "env",
 				},
@@ -113,6 +121,8 @@ var ContainerCommand = &cli.Command{
 				image := c.String("image")
 				rawEnv := c.StringSlice("env")
 				rawMounts := c.StringSlice("mounts")
+				cores := c.String("cores")
+				memory := c.String("memory")
 
 				env := []struct {
 					Name  string `json:"name"`
@@ -158,6 +168,8 @@ var ContainerCommand = &cli.Command{
 						Image:        &image,
 						Env:          &env,
 						VolumeMounts: &mounts,
+						Cores:        &cores,
+						Memory:       &memory,
 					},
 				})
 				if err != nil {
