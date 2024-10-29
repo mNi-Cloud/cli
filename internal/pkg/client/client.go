@@ -90,6 +90,7 @@ func (r *RestClient) Create(ctx context.Context, obj map[string]interface{}, par
 		return nil, err
 	}
 
+	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", params.Authorization)
 	if params.XNamespace != nil {
 		req.Header.Set("X-namespace", *params.XNamespace)
@@ -109,6 +110,7 @@ func (r *RestClient) Patch(ctx context.Context, name string, obj map[string]inte
 		return nil, err
 	}
 
+	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", params.Authorization)
 	if params.XNamespace != nil {
 		req.Header.Set("X-namespace", *params.XNamespace)
