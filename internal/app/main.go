@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/labstack/gommon/log"
 	bsModel "github.com/mNi-Cloud/backend/bs/api/gen/v1alpha1"
 	ctrModel "github.com/mNi-Cloud/backend/ctr/api/gen/v1alpha1"
 	vmModel "github.com/mNi-Cloud/backend/vm/api/gen/v1alpha1"
@@ -19,6 +20,9 @@ func New() *cli.App {
 	app.EnableBashCompletion = true
 
 	app.Flags = []cli.Flag{
+		&cli.BoolFlag{
+			Name: "debug",
+		},
 		&cli.StringFlag{
 			Name:    "idp-endpoint",
 			Usage:   "The endpoint of keycloak",
@@ -59,6 +63,13 @@ func New() *cli.App {
 			Name:   "token",
 			Hidden: true,
 		},
+	}
+
+	app.Before = func(c *cli.Context) error {
+		if c.Bool("debug") {
+			log.SetLevel(log.DEBUG)
+		}
+		return nil
 	}
 
 	app.Commands = []*cli.Command{
