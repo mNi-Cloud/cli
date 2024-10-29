@@ -43,9 +43,10 @@ jobs:
         env:
           GH_USERNAME: ${{secrets.GH_USERNAME}}
           GH_PAT: ${{secrets.GH_PAT}}
+          VERSION: ${{github.ref_name}}
         run: |
           git config --global url."https://$GH_USERNAME:$GH_PAT@github.com/mNi-Cloud/backend".insteadOf "https://github.com/mNi-Cloud/backend"
-          GOPRIVATE=github.com/mNi-Cloud go build -o "$BINARY_NAME" -v cmd/mni-client/main.go
+          GOPRIVATE=github.com/mNi-Cloud go build -ldflags "-X github.com/mNi-Cloud/cli/internal/app.version=$VERSION" -o "$BINARY_NAME" -v cmd/mni-client/main.go
       - name: upload files
         uses: actions/upload-artifact@v3
         with:

@@ -12,10 +12,12 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+var version string
+
 func New() *cli.App {
 	app := cli.NewApp()
 	app.Name = "mni"
-	app.Version = "0.0.1"
+	app.Version = version
 	app.Description = "CLI client for mNi-Cloud services"
 	app.EnableBashCompletion = true
 
