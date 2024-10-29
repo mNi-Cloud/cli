@@ -1,4 +1,4 @@
-package commands
+package factory
 
 import (
 	"fmt"
@@ -6,29 +6,9 @@ import (
 	"time"
 
 	"github.com/mNi-Cloud/backend/auth/pkg/kc"
-	mni_bs "github.com/mNi-Cloud/backend/bs/pkg/client"
-	mni_ctr "github.com/mNi-Cloud/backend/ctr/pkg/client"
-	mni_vm "github.com/mNi-Cloud/backend/vm/pkg/client"
-	mni_vpc "github.com/mNi-Cloud/backend/vpc/pkg/client"
 	"github.com/mNi-Cloud/cli/internal/pkg/config"
 	"github.com/urfave/cli/v2"
 )
-
-func NewVpcClient(ctx *cli.Context) (*mni_vpc.Client, error) {
-	return mni_vpc.NewClient(ctx.String("vpc-endpoint"))
-}
-
-func NewVmClient(ctx *cli.Context) (*mni_vm.Client, error) {
-	return mni_vm.NewClient(ctx.String("vm-endpoint"))
-}
-
-func NewBsClient(ctx *cli.Context) (*mni_bs.Client, error) {
-	return mni_bs.NewClient(ctx.String("bs-endpoint"))
-}
-
-func NewCtrClient(ctx *cli.Context) (*mni_ctr.Client, error) {
-	return mni_ctr.NewClient(ctx.String("ctr-endpoint"))
-}
 
 func TokenFunc() cli.BeforeFunc {
 	return func(c *cli.Context) error {
@@ -41,7 +21,10 @@ func TokenFunc() cli.BeforeFunc {
 		}
 
 		if cfg.TokenExpiry.After(time.Now()) {
-			c.Set("token", cfg.Token)
+			err := c.Set("token", cfg.Token)
+			if err != nil {
+				return err
+			}
 			return nil
 		}
 
@@ -69,7 +52,10 @@ func TokenFunc() cli.BeforeFunc {
 			if err != nil {
 				fmt.Println("Failed to save token")
 			}
-			c.Set("token", res.IdToken)
+			err = c.Set("token", res.IdToken)
+			if err != nil {
+				return err
+			}
 			return nil
 		}
 

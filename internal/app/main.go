@@ -1,11 +1,13 @@
 package app
 
 import (
-	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/bs"
-	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/ctr"
-	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/login"
-	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/vm"
-	"github.com/mNi-Cloud/cli/cmd/mni-client/commands/vpc"
+	bsModel "github.com/mNi-Cloud/backend/bs/api/gen/v1alpha1"
+	ctrModel "github.com/mNi-Cloud/backend/ctr/api/gen/v1alpha1"
+	vmModel "github.com/mNi-Cloud/backend/vm/api/gen/v1alpha1"
+	vpcModel "github.com/mNi-Cloud/backend/vpc/api/gen/v1alpha1"
+	"github.com/mNi-Cloud/cli/internal/app/factory/login"
+	"github.com/mNi-Cloud/cli/internal/app/factory/vm"
+	"github.com/mNi-Cloud/cli/internal/pkg/factory"
 	"github.com/urfave/cli/v2"
 )
 
@@ -60,37 +62,37 @@ func New() *cli.App {
 	}
 
 	app.Commands = []*cli.Command{
+		login.NewCommandFactory().Command("login"),
 		{
 			Name: "vpc",
 			Subcommands: []*cli.Command{
-				vpc.VpcCommand,
-				vpc.SubnetCommand,
-				vpc.EipCommand,
-				vpc.EipAssociateCommand,
+				factory.NewRestCommandFactory("vpc-endpoint", "v1alpha1", "vpcs", vpcModel.Vpc()).Command("vpcs"),
+				factory.NewRestCommandFactory("vpc-endpoint", "v1alpha1", "subnets", vpcModel.Subnet()).Command("subnets"),
+				factory.NewRestCommandFactory("vpc-endpoint", "v1alpha1", "eips", vpcModel.Eip()).Command("eips"),
+				factory.NewRestCommandFactory("vpc-endpoint", "v1alpha1", "eipassociates", vpcModel.EipAssociate()).Command("eipassociates"),
 			},
 		},
 		{
 			Name: "vm",
 			Subcommands: []*cli.Command{
-				vm.VirtualMachinePoolCommand,
-				vm.VirtualMachineCommand,
-				vm.ImageCommand,
+				vm.NewVirtualMachineCommandFactory(vmModel.VirtualMachine()).Command("vms"),
+				vm.NewVirtualMachinePoolCommandFactory(vmModel.VirtualMachinePool()).Command("vmpools"),
+				factory.NewRestCommandFactory("vm-endpoint", "v1alpha1", "images", vmModel.Image()).Command("images"),
 			},
 		},
 		{
 			Name: "bs",
 			Subcommands: []*cli.Command{
-				bs.VolumeCommand,
+				factory.NewRestCommandFactory("bs-endpoint", "v1alpha1", "volumes", bsModel.Volume()).Command("volumes"),
 			},
 		},
 		{
 			Name: "ctr",
 			Subcommands: []*cli.Command{
-				ctr.ContainerPoolCommand,
-				ctr.ContainerCommand,
+				factory.NewRestCommandFactory("ctr-endpoint", "v1alpha1", "containers", ctrModel.Container()).Command("containers"),
+				factory.NewRestCommandFactory("ctr-endpoint", "v1alpha1", "containerpools", ctrModel.ContainerPool()).Command("containerpools"),
 			},
 		},
-		login.Command,
 	}
 
 	return app

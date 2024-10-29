@@ -2,9 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/mNi-Cloud/cli/internal/app"
 	"os"
-
-	"github.com/mNi-Cloud/cli/cmd/mni-client/app"
 )
 
 func main() {
