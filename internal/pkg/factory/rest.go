@@ -288,6 +288,10 @@ func (r RestCommandFactory) appendSingle(t table.Writer, prefix string, obj map[
 			continue
 		}
 
+		if _, ok := obj[jsonFieldName]; !ok {
+			continue
+		}
+
 		if field.Type == model.TypeStruct {
 			r.appendSingle(t, prefix+fieldName+".", obj[jsonFieldName].(map[string]interface{}), &field.FieldStruct.Model)
 		} else if field.Type == model.TypeSlice {
@@ -343,18 +347,25 @@ func (r RestCommandFactory) appendMultiple(row table.Row, prefix string, obj map
 	for _, fieldName := range m.FieldsOrder {
 		jsonFieldName := mni.ToLowerCamel(fieldName)
 		field := m.Fields[fieldName]
-		if !field.WriteOnly && field.Short {
-			if field.Type == model.TypeStruct {
-				row = r.appendMultiple(row, prefix+fieldName+".", obj[jsonFieldName].(map[string]interface{}), &field.FieldStruct.Model)
-			} else if field.Type == model.TypeSlice {
-				if field.FieldSlice.Item.Type == model.TypeStruct {
-					fmt.Println("Not implemented")
-				} else {
-					row = append(row, obj[jsonFieldName])
-				}
+
+		if field.WriteOnly || !field.Short {
+			continue
+		}
+
+		if _, ok := obj[jsonFieldName]; !ok {
+			continue
+		}
+
+		if field.Type == model.TypeStruct {
+			row = r.appendMultiple(row, prefix+fieldName+".", obj[jsonFieldName].(map[string]interface{}), &field.FieldStruct.Model)
+		} else if field.Type == model.TypeSlice {
+			if field.FieldSlice.Item.Type == model.TypeStruct {
+				fmt.Println("Not implemented")
 			} else {
 				row = append(row, obj[jsonFieldName])
 			}
+		} else {
+			row = append(row, obj[jsonFieldName])
 		}
 	}
 	return row
