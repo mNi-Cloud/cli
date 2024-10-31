@@ -8,6 +8,7 @@ import (
 	"github.com/mNi-Cloud/backend/common/pkg/mni/apigen/model"
 	"github.com/mNi-Cloud/cli/internal/pkg/client"
 	"github.com/urfave/cli/v2"
+	"golang.org/x/term"
 	"strconv"
 )
 
@@ -274,6 +275,11 @@ func (r RestCommandFactory) displaySingle(ctx *cli.Context, response *client.Sin
 	t := table.NewWriter()
 	t.SetOutputMirror(ctx.App.Writer)
 
+	width, _, err := term.GetSize(0)
+	if err == nil {
+		t.SetAllowedRowLength(width)
+	}
+
 	t.AppendHeader(table.Row{"Field", "Value"})
 	r.appendSingle(t, "", response.Body, r.model)
 	t.Render()
@@ -314,6 +320,11 @@ func (r RestCommandFactory) appendSingle(t table.Writer, prefix string, obj map[
 func (r RestCommandFactory) displayMultiple(ctx *cli.Context, response *client.MultitonResponse) {
 	t := table.NewWriter()
 	t.SetOutputMirror(ctx.App.Writer)
+
+	width, _, err := term.GetSize(0)
+	if err == nil {
+		t.SetAllowedRowLength(width)
+	}
 
 	t.AppendHeader(r.appendHeaderMultiple(table.Row{}, "", r.model))
 

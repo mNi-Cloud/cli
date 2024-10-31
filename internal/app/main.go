@@ -20,6 +20,7 @@ func New() *cli.App {
 	app.Version = version
 	app.Description = "CLI client for mNi-Cloud services"
 	app.EnableBashCompletion = true
+	app.DisableSliceFlagSeparator = true
 
 	app.Flags = []cli.Flag{
 		&cli.BoolFlag{
