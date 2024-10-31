@@ -289,6 +289,7 @@ func (r RestCommandFactory) appendSingle(t table.Writer, prefix string, obj map[
 		}
 
 		if _, ok := obj[jsonFieldName]; !ok {
+			t.AppendRow(table.Row{prefix + fieldName, ""})
 			continue
 		}
 
@@ -353,6 +354,7 @@ func (r RestCommandFactory) appendMultiple(row table.Row, prefix string, obj map
 		}
 
 		if _, ok := obj[jsonFieldName]; !ok {
+			row = append(row, "")
 			continue
 		}
 
