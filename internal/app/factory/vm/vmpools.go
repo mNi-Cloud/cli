@@ -1,12 +1,17 @@
 package vm
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"github.com/mNi-Cloud/backend/common/pkg/mni"
 	"github.com/mNi-Cloud/backend/common/pkg/mni/apigen/model"
+	"github.com/mNi-Cloud/backend/vm/api/v1alpha1/vm"
 	"github.com/mNi-Cloud/backend/vm/api/v1alpha1/vmpool"
 	"github.com/mNi-Cloud/backend/vm/pkg/client"
 	"github.com/mNi-Cloud/cli/internal/pkg/factory"
 	"github.com/urfave/cli/v2"
+	"os"
 )
 
 type VirtualMachinePoolCommandFactory struct {
@@ -15,6 +20,53 @@ type VirtualMachinePoolCommandFactory struct {
 
 func (c VirtualMachinePoolCommandFactory) Command(name string) *cli.Command {
 	command := c.CommandFactory.Command(name)
+
+	var createCommand *cli.Command
+	for _, subcommand := range command.Subcommands {
+		if subcommand.Name == "create" {
+			createCommand = subcommand
+			break
+		}
+	}
+	if createCommand != nil {
+		createCommand.Flags = append(createCommand.Flags, &cli.StringFlag{
+			Name:  "userdata-file",
+			Usage: "userdata `FILE`",
+		})
+
+		createCommand.Before = func(c *cli.Context) error {
+			err := factory.TokenFunc()(c)
+			if err != nil {
+				return err
+			}
+
+			if c.IsSet("userdata-file") {
+				bytes, err := os.ReadFile(c.String("userdata-file"))
+				if err != nil {
+					return err
+				}
+				userDataBase64 := base64.StdEncoding.EncodeToString(bytes)
+
+				diskModel := &vm.VirtualMachineDiskModel{
+					Name: mni.String("cloudinit"),
+					CloudInitSource: &vm.VirtualMachineDiskCloudInitSourceModel{
+						UserDataBase64: &userDataBase64,
+					},
+				}
+
+				bytes, err = json.Marshal(diskModel)
+				if err != nil {
+					return err
+				}
+				err = c.Set("spec.additionalDisks", string(bytes))
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}
+
 	command.Subcommands = append(command.Subcommands, &cli.Command{
 		Name:      "start",
 		Before:    factory.TokenFunc(),
