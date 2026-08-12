@@ -1,0 +1,104 @@
+{
+  "type": "object",
+  "required": [
+    "cores",
+    "memory",
+    "rootVolume",
+    "subnet"
+  ],
+  "properties": {
+    "additionalDisks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "cloudInitSource": {
+            "type": "object",
+            "properties": {
+              "userDataBase64": {
+                "type": "string"
+              }
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "volumeSource": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "cores": {
+      "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "x-kubernetes-int-or-string": true
+    },
+    "memory": {
+      "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "x-kubernetes-int-or-string": true
+    },
+    "rootVolume": {
+      "type": "object",
+      "required": [
+        "size",
+        "source"
+      ],
+      "properties": {
+        "generatedDiskName": {
+          "type": "string"
+        },
+        "size": {
+          "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$",
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "x-kubernetes-int-or-string": true
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "name",
+            "namespace"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "namespace": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "subnet": {
+      "type": "string"
+    }
+  }
+}

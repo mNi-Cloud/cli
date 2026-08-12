@@ -1,0 +1,41 @@
+{
+  "apiVersion": "vpc/v1alpha2",
+  "kind": "Vpc",
+  "metadata": {
+    "name": "clidesc",
+    "namespace": "21f40d54-9bc9-4e47-9fe2-91908e6f564d",
+    "uid": "3efdd940-063c-46d3-98eb-57d21178e4db",
+    "resourceVersion": "1990753",
+    "generation": 1,
+    "labels": {
+      "env": "dev"
+    },
+    "displayName": "CLI describe demo",
+    "description": "Used to check the describe output",
+    "shadow": false
+  },
+  "spec": {
+    "enforceSecurityGroups": true
+  },
+  "status": {
+    "backingVpc": "a20d44ebie08o2gra8oszobc5p-4w7ivaiz22ecr1l0qll8opfhip1m3vrah7nj",
+    "conditions": [
+      {
+        "lastTransitionTime": "2026-08-08T09:38:57Z",
+        "message": "Resource is healthy",
+        "reason": "OK",
+        "status": "False",
+        "type": "Degraded"
+      },
+      {
+        "lastTransitionTime": "2026-08-08T09:38:57Z",
+        "message": "Resource is available",
+        "reason": "OK",
+        "status": "True",
+        "type": "Available"
+      }
+    ],
+    "observedGeneration": 1,
+    "phase": "Ready"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "type": "object",
+  "required": [
+    "cidr",
+    "vpc"
+  ],
+  "properties": {
+    "cidr": {
+      "type": "string"
+    },
+    "routeTable": {
+      "description": "RouteTable selects the routing policy for this Subnet. Empty uses the\nVPC main route table.",
+      "type": "string"
+    },
+    "vpc": {
+      "type": "string"
+    }
+  }
+}
