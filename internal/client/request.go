@@ -83,7 +83,11 @@ func do[T any](ctx context.Context, httpClient *http.Client, req *http.Request) 
 	decodeErr := json.Unmarshal(raw, &envelope)
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return zero, &api.Error{StatusCode: resp.StatusCode, Message: failureMessage(envelope, decodeErr, raw)}
+		return zero, &api.Error{
+			StatusCode: resp.StatusCode,
+			Message:    failureMessage(envelope, decodeErr, raw),
+			Challenge:  resp.Header.Get("WWW-Authenticate"),
+		}
 	}
 	if decodeErr != nil {
 		return zero, fmt.Errorf("cannot read the answer of %s: %w", req.URL, decodeErr)

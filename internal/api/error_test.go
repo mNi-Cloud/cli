@@ -79,6 +79,75 @@ func TestIsForbidden(t *testing.T) {
 	}
 }
 
+func TestIsInsufficientScope(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{
+			name: "insufficient scope",
+			err:  &Error{StatusCode: http.StatusForbidden, Challenge: `Bearer error="insufficient_scope", scope="mni:api"`},
+			want: true,
+		},
+		{
+			name: "a challenge with a realm before the error",
+			err:  &Error{StatusCode: http.StatusForbidden, Challenge: `Bearer realm="mni", error="insufficient_scope", error_description="the token may not call this API", scope="mni:api"`},
+			want: true,
+		},
+		{
+			name: "a comma inside a value",
+			err:  &Error{StatusCode: http.StatusForbidden, Challenge: `Bearer error_description="this token, issued elsewhere, may not call the API", error="insufficient_scope"`},
+			want: true,
+		},
+		{
+			name: "an unquoted value",
+			err:  &Error{StatusCode: http.StatusForbidden, Challenge: "Bearer error=insufficient_scope"},
+			want: true,
+		},
+		{
+			name: "a lower case scheme",
+			err:  &Error{StatusCode: http.StatusForbidden, Challenge: `bearer error="insufficient_scope"`},
+			want: true,
+		},
+		{
+			name: "wrapped",
+			err:  fmt.Errorf("list: %w", &Error{StatusCode: http.StatusForbidden, Challenge: `Bearer error="insufficient_scope"`}),
+			want: true,
+		},
+		{
+			name: "another bearer error",
+			err:  &Error{StatusCode: http.StatusUnauthorized, Challenge: `Bearer error="invalid_token"`},
+			want: false,
+		},
+		{
+			name: "a challenge without an error",
+			err:  &Error{StatusCode: http.StatusUnauthorized, Challenge: "Bearer"},
+			want: false,
+		},
+		{
+			name: "another scheme",
+			err:  &Error{StatusCode: http.StatusUnauthorized, Challenge: `Basic realm="insufficient_scope"`},
+			want: false,
+		},
+		{
+			name: "forbidden without a challenge",
+			err:  &Error{StatusCode: http.StatusForbidden, Message: "Forbidden"},
+			want: false,
+		},
+		{name: "plain error", err: errors.New("boom"), want: false},
+		{name: "nil", err: nil, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsInsufficientScope(tt.err); got != tt.want {
+				t.Errorf("IsInsufficientScope(%v) = %v, want %v", tt.err, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestStatusCode(t *testing.T) {
 	code, ok := StatusCode(fmt.Errorf("wrapped: %w", &Error{StatusCode: http.StatusConflict}))
 	if !ok {

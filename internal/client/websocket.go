@@ -131,5 +131,9 @@ func handshakeError(err error, response *http.Response) error {
 
 	var envelope api.Response[any]
 	decodeErr := json.Unmarshal(raw, &envelope)
-	return &api.Error{StatusCode: response.StatusCode, Message: failureMessage(envelope, decodeErr, raw)}
+	return &api.Error{
+		StatusCode: response.StatusCode,
+		Message:    failureMessage(envelope, decodeErr, raw),
+		Challenge:  response.Header.Get("WWW-Authenticate"),
+	}
 }
