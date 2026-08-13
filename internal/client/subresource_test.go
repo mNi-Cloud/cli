@@ -180,6 +180,17 @@ func TestSubresourceConnectReportsARejectedHandshake(t *testing.T) {
 	}
 }
 
+func TestSubresourceConnectReportsAHandshakeRefusedForTheScope(t *testing.T) {
+	subresource, _ := newSubresource(t, "a", "serial", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("WWW-Authenticate", `Bearer error="insufficient_scope", scope="mni:api"`)
+		writeEnvelope(t, w, http.StatusForbidden, api.Response[any]{Message: "Forbidden"})
+	})
+
+	if _, err := subresource.Connect(context.Background()); !api.IsInsufficientScope(err) {
+		t.Fatalf("Connect() error = %v, want a refusal that names the missing scope", err)
+	}
+}
+
 func TestSubresourceConnectEndsWhenTheConsoleCloses(t *testing.T) {
 	subresource, _ := newSubresource(t, "a", "serial", func(w http.ResponseWriter, r *http.Request) {
 		upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}

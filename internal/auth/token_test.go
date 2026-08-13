@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -47,6 +48,14 @@ func newTokenServer(t *testing.T, handle func(form url.Values, w http.ResponseWr
 	}))
 	t.Cleanup(server.Close)
 	return server, recorded
+}
+
+func TestDefaultScopes(t *testing.T) {
+	for _, scope := range []string{"openid", "offline_access", "mni:api"} {
+		if !slices.Contains(DefaultScopes, scope) {
+			t.Errorf("DefaultScopes = %v, want it to ask for %q", DefaultScopes, scope)
+		}
+	}
 }
 
 func TestExchangePostsTheAuthorizationCode(t *testing.T) {

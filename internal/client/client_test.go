@@ -267,6 +267,19 @@ func TestUnauthorizedIsReportedWithItsStatus(t *testing.T) {
 	}
 }
 
+func TestATokenWithoutTheScopeTheAPINeedsIsReported(t *testing.T) {
+	server, _ := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("WWW-Authenticate", `Bearer error="insufficient_scope", scope="mni:api"`)
+		writeEnvelope(t, w, http.StatusForbidden, api.Response[any]{Success: false, Message: "Forbidden"})
+	})
+	client := newTestClient(t, server, &staticTokens{token: "issued-elsewhere"})
+
+	resource, _ := client.Resource(namespacedResource, "e2etest")
+	if _, err := resource.List(context.Background()); !api.IsInsufficientScope(err) {
+		t.Fatalf("List() error = %v, want a refusal that names the missing scope", err)
+	}
+}
+
 func TestAFailureThatIsNotAnEnvelopeStillCarriesTheStatus(t *testing.T) {
 	server, _ := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadGateway)

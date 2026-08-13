@@ -15,8 +15,9 @@ import (
 const bearerTokenType = "bearer"
 
 // DefaultScopes are the scopes a CLI login asks for. offline_access is what
-// buys the refresh token that keeps later commands from opening a browser.
-var DefaultScopes = []string{"openid", "profile", "email", "offline_access"}
+// buys the refresh token that keeps later commands from opening a browser, and
+// mni:api is what api-gateway takes as leave to act for the user.
+var DefaultScopes = []string{"openid", "profile", "email", "offline_access", "mni:api"}
 
 // Token is a token set as the CLI holds it, with the lifetime already turned
 // into the moment the access token dies.
