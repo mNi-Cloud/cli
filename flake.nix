@@ -27,7 +27,7 @@
             pname = "mni";
             inherit version;
             src = ./.;
-            vendorHash = "sha256-xSvaGJEcL7w2XlISvIUWGQoNuL5/TxL/Ga0Kt6keaQg=";
+            vendorHash = "sha256-p6exn2bQlDtI0PDXIuj5WvArbCChEj6anEhcNBAuwmU=";
 
             subPackages = [ "cmd" ];
             ldflags = [ "-s" "-w" "-X main.version=${version}" ];
