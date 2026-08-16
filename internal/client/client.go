@@ -156,7 +156,7 @@ func (c *Client) Resource(resource api.APIResource, tenant string) (ResourceClie
 // Subresource addresses a subresource of one object. api-gateway relays a
 // subresource to the controller that serves the resource, so what it does is up
 // to that controller.
-func (c *Client) Subresource(resource api.APIResource, tenant, name, subresource string) (SubresourceClient, error) {
+func (c *Client) Subresource(resource api.APIResource, tenant, name, subresource string, options ...SubresourceOption) (SubresourceClient, error) {
 	if subresource == "" {
 		return nil, errors.New("no subresource to call on " + resource.Kind)
 	}
@@ -170,12 +170,16 @@ func (c *Client) Subresource(resource api.APIResource, tenant, name, subresource
 		return nil, err
 	}
 
-	return &subresourceClient{
+	addressed := &subresourceClient{
 		url:        target + "/" + url.PathEscape(subresource),
 		httpClient: c.authenticated,
 		dialer:     c.websocket,
 		tokens:     c.tokens,
-	}, nil
+	}
+	for _, option := range options {
+		option(addressed)
+	}
+	return addressed, nil
 }
 
 func (c *Client) resourceClient(resource api.APIResource, tenant string) (*resourceClient, error) {
