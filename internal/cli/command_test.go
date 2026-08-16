@@ -81,11 +81,16 @@ var (
 		Group: "ctr", Version: "v1alpha", Resource: "containers", Kind: "Container",
 		Scope: api.ScopeNamespaced, Aliases: []string{"ctr"},
 	}
+	testSSHKey = api.APIResource{
+		Group: "vm", Version: "v1alpha1", Resource: "sshkeys", Kind: "SSHKey",
+		Scope: api.ScopeNamespaced, Aliases: []string{"sshkey"},
+	}
 )
 
 const (
 	machinePath   = "/vm/v1alpha1/tenants/e2etest/virtualmachines"
 	containerPath = "/ctr/v1alpha/tenants/e2etest/containers"
+	sshKeyPath    = "/vm/v1alpha1/tenants/e2etest/sshkeys"
 )
 
 // streamUpgrader answers the handshake of a subresource that carries a stream,
@@ -167,7 +172,7 @@ func newTestEnv(t *testing.T) *testEnv {
 
 		switch {
 		case r.URL.Path == "/api-resources":
-			writeJSON(w, api.APIResourceList{testVPC, testSubnet, testTenantResource, testMachine, testContainer})
+			writeJSON(w, api.APIResourceList{testVPC, testSubnet, testTenantResource, testMachine, testContainer, testSSHKey})
 
 		case strings.HasSuffix(r.URL.Path, "/dependencies"):
 			writeJSON(w, env.dependencies[strings.TrimSuffix(r.URL.Path, "/dependencies")])

@@ -63,6 +63,7 @@ func NewCommandFor(version string, deps *Deps) *cli.Command {
 			dependentsCommand(deps),
 			vmCommand(deps),
 			ctrCommand(deps),
+			sshKeyCommand(deps),
 		},
 	}
 }
