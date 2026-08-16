@@ -8,11 +8,14 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/mNi-Cloud/cli/internal/api"
 	"github.com/mNi-Cloud/cli/internal/auth"
 	"github.com/mNi-Cloud/cli/internal/config"
@@ -74,9 +77,20 @@ var (
 		Group: "vm", Version: "v1alpha1", Resource: "virtualmachines", Kind: "VirtualMachine",
 		Scope: api.ScopeNamespaced, Aliases: []string{"vm"},
 	}
+	testContainer = api.APIResource{
+		Group: "ctr", Version: "v1alpha", Resource: "containers", Kind: "Container",
+		Scope: api.ScopeNamespaced, Aliases: []string{"ctr"},
+	}
 )
 
-const machinePath = "/vm/v1alpha1/tenants/e2etest/virtualmachines"
+const (
+	machinePath   = "/vm/v1alpha1/tenants/e2etest/virtualmachines"
+	containerPath = "/ctr/v1alpha/tenants/e2etest/containers"
+)
+
+// streamUpgrader answers the handshake of a subresource that carries a stream,
+// the way a controller does.
+var streamUpgrader = websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
 
 // recorded is one request the fake gateway answered, with its body kept.
 type recorded struct {
@@ -97,6 +111,17 @@ type testEnv struct {
 	dependents map[string][]api.Dependency
 	// failures is the answer a path is refused with, by that path.
 	failures map[string]api.Response[any]
+	// streams is what a subresource that carries a stream sends before it
+	// leaves, by the path of that subresource. Every entry is one frame.
+	streams map[string][][]byte
+	// awaitFrame holds back what a stream sends until the client sent this
+	// frame, the way a command that reads to the end of its input waits.
+	awaitFrame map[string][]byte
+
+	// mutex guards received, which a stream fills while the test reads it.
+	mutex sync.Mutex
+	// received holds the frames a stream was sent, by the path of it.
+	received map[string][][]byte
 	// object is what one addressed resource answers, by its path.
 	object map[string]unstructured.Unstructured
 	// objects is what a resource collection answers.
@@ -116,6 +141,9 @@ func newTestEnv(t *testing.T) *testEnv {
 		dependencies: map[string][]api.Dependency{},
 		dependents:   map[string][]api.Dependency{},
 		failures:     map[string]api.Response[any]{},
+		streams:      map[string][][]byte{},
+		awaitFrame:   map[string][]byte{},
+		received:     map[string][][]byte{},
 		object:       map[string]unstructured.Unstructured{},
 		objects:      unstructured.UnstructuredList{},
 		tenants:      []api.Tenant{},
@@ -132,9 +160,14 @@ func newTestEnv(t *testing.T) *testEnv {
 			return
 		}
 
+		if websocket.IsWebSocketUpgrade(r) {
+			env.serveStream(w, r)
+			return
+		}
+
 		switch {
 		case r.URL.Path == "/api-resources":
-			writeJSON(w, api.APIResourceList{testVPC, testSubnet, testTenantResource, testMachine})
+			writeJSON(w, api.APIResourceList{testVPC, testSubnet, testTenantResource, testMachine, testContainer})
 
 		case strings.HasSuffix(r.URL.Path, "/dependencies"):
 			writeJSON(w, env.dependencies[strings.TrimSuffix(r.URL.Path, "/dependencies")])
@@ -167,6 +200,76 @@ func newTestEnv(t *testing.T) *testEnv {
 	env.store = config.NewStoreAt(filepath.Join(dir, "config.yaml"), filepath.Join(dir, "credentials.yaml"))
 
 	return env
+}
+
+// serveStream answers a WebSocket upgrade the way a controller does: it echoes
+// the subprotocol back, sends what the test set up and then leaves.
+func (e *testEnv) serveStream(w http.ResponseWriter, r *http.Request) {
+	header := http.Header{}
+	if protocols := websocket.Subprotocols(r); len(protocols) > 0 {
+		header.Set("Sec-WebSocket-Protocol", protocols[0])
+	}
+
+	conn, err := streamUpgrader.Upgrade(w, r, header)
+	if err != nil {
+		return
+	}
+	defer func() { _ = conn.Close() }()
+
+	awaited := make(chan struct{})
+	go e.readStream(conn, r.URL.Path, awaited)
+
+	if _, holds := e.awaitFrame[r.URL.Path]; holds {
+		select {
+		case <-awaited:
+		case <-time.After(5 * time.Second):
+			// The frame never came. Answering anyway leaves the test to say
+			// what is missing instead of waiting for the whole test run to
+			// time out.
+		}
+	}
+
+	for _, frame := range e.streams[r.URL.Path] {
+		if err := conn.WriteMessage(websocket.BinaryMessage, frame); err != nil {
+			return
+		}
+	}
+
+	goodbye := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
+	_ = conn.WriteControl(websocket.CloseMessage, goodbye, time.Now().Add(time.Second))
+}
+
+// readStream keeps what a client sends, and says when the frame the stream
+// waits for arrived.
+func (e *testEnv) readStream(conn *websocket.Conn, path string, awaited chan<- struct{}) {
+	want, holds := e.awaitFrame[path]
+	came := false
+
+	for {
+		_, payload, err := conn.ReadMessage()
+		if err != nil {
+			if holds && !came {
+				close(awaited)
+			}
+			return
+		}
+
+		e.mutex.Lock()
+		e.received[path] = append(e.received[path], bytes.Clone(payload))
+		e.mutex.Unlock()
+
+		if holds && !came && bytes.Equal(payload, want) {
+			came = true
+			close(awaited)
+		}
+	}
+}
+
+// framesOf returns the frames a stream was sent.
+func (e *testEnv) framesOf(path string) [][]byte {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	return append([][]byte{}, e.received[path]...)
 }
 
 func (e *testEnv) writeContext(t *testing.T, tenant string) {
@@ -224,6 +327,36 @@ func (e *testEnv) runWith(t *testing.T, in io.Reader, interactive bool, args ...
 	command := NewCommandFor("test", deps)
 	err := command.Run(context.Background(), append([]string{"mni"}, args...))
 	return out.String(), err
+}
+
+// runSplit runs a command with the two output streams kept apart, the way a
+// shell that redirects only one of them sees them.
+func (e *testEnv) runSplit(t *testing.T, args ...string) (string, string, error) {
+	t.Helper()
+	return e.runSplitWith(t, nil, args...)
+}
+
+// runSplitWith runs a command over an input stream that is no terminal, the way
+// a shell that pipes something into it does.
+func (e *testEnv) runSplitWith(t *testing.T, in io.Reader, args ...string) (string, string, error) {
+	t.Helper()
+
+	out, errOut := &bytes.Buffer{}, &bytes.Buffer{}
+	deps := NewDeps(in, out, errOut)
+
+	command := NewCommandFor("test", deps)
+	err := command.Run(context.Background(), append([]string{"mni"}, args...))
+	return out.String(), errOut.String(), err
+}
+
+// queryOf returns the query of the first request that reached a path.
+func (e *testEnv) queryOf(path string) url.Values {
+	for _, req := range e.requests {
+		if req.URL.Path == path {
+			return req.URL.Query()
+		}
+	}
+	return nil
 }
 
 func (e *testEnv) lastPath() string {

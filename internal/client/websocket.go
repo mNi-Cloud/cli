@@ -19,8 +19,17 @@ const closeWriteWait = 5 * time.Second
 
 // Stream is one open connection to a subresource. Both directions carry raw
 // bytes, whatever the subresource makes of them.
+//
+// The bytes are read either as a run, which a console does, or frame by frame,
+// which a subresource that names a channel in the first byte of every frame
+// needs. One connection is read one of the two ways, never both.
 type Stream interface {
 	io.ReadWriteCloser
+
+	// ReadMessage hands out the payload of one whole frame.
+	ReadMessage() ([]byte, error)
+	// WriteMessage sends one payload as one whole frame.
+	WriteMessage(payload []byte) error
 }
 
 // stream carries bytes over the binary frames of a WebSocket. One reader and
@@ -73,6 +82,18 @@ func (s *stream) Write(p []byte) (int, error) {
 		return 0, err
 	}
 	return len(p), nil
+}
+
+func (s *stream) ReadMessage() ([]byte, error) {
+	_, payload, err := s.conn.ReadMessage()
+	if err != nil {
+		return nil, endOfStream(err)
+	}
+	return payload, nil
+}
+
+func (s *stream) WriteMessage(payload []byte) error {
+	return s.conn.WriteMessage(websocket.BinaryMessage, payload)
 }
 
 func (s *stream) Close() error {

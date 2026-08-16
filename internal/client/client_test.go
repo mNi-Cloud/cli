@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -29,6 +30,7 @@ func (t *staticTokens) Token(context.Context) (string, error) {
 type capturedRequest struct {
 	method        string
 	path          string
+	query         url.Values
 	authorization string
 	contentType   string
 	body          string
@@ -48,6 +50,7 @@ func newTestServer(t *testing.T, handle func(w http.ResponseWriter, r *http.Requ
 		*captured = append(*captured, capturedRequest{
 			method:        r.Method,
 			path:          r.URL.Path,
+			query:         r.URL.Query(),
 			authorization: r.Header.Get("Authorization"),
 			contentType:   r.Header.Get("Content-Type"),
 			body:          string(body),

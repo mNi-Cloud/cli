@@ -21,7 +21,9 @@ func main() {
 	defer stop()
 
 	if err := cli.NewCommand(buildinfo.Version(version)).Run(ctx, os.Args); err != nil {
-		fmt.Fprintln(os.Stderr, "Error:", cli.UserFacing(err))
-		os.Exit(1)
+		if message := cli.UserFacing(err); message != nil {
+			fmt.Fprintln(os.Stderr, "Error:", message)
+		}
+		os.Exit(cli.ExitCode(err))
 	}
 }
