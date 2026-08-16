@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"os"
 
 	"github.com/urfave/cli/v3"
@@ -18,11 +19,18 @@ func NewCommandFor(version string, deps *Deps) *cli.Command {
 		Version:               version,
 		Usage:                 "CLI client for mNi Cloud",
 		EnableShellCompletion: true,
+		// Short flags written together are one flag each, so that `mni ctr exec
+		// -it` reads the way the same line does in kubectl.
+		UseShortOptionHandling: true,
 		// urfave/cli hides the completion command it adds, and a command the
 		// help never names is one nobody installs.
 		ConfigureShellCompletionCommand: func(completion *cli.Command) {
 			completion.Hidden = false
 		},
+		// urfave/cli ends the process itself once an action asks for an exit
+		// code, which would leave the caller of this command tree with nothing
+		// to report. The error is handed back instead.
+		ExitErrHandler: func(context.Context, *cli.Command, error) {},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "context",
@@ -54,6 +62,7 @@ func NewCommandFor(version string, deps *Deps) *cli.Command {
 			dependenciesCommand(deps),
 			dependentsCommand(deps),
 			vmCommand(deps),
+			ctrCommand(deps),
 		},
 	}
 }

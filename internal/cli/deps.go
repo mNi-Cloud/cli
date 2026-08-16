@@ -229,7 +229,7 @@ func (d *Deps) ResourceFor(resource api.APIResource) (client.ResourceClient, err
 
 // SubresourceFor addresses a subresource of one object, by the name of its
 // resource as the user types it.
-func (d *Deps) SubresourceFor(ctx context.Context, resourceName, name, subresource string) (client.SubresourceClient, error) {
+func (d *Deps) SubresourceFor(ctx context.Context, resourceName, name, subresource string, options ...client.SubresourceOption) (client.SubresourceClient, error) {
 	resource, err := d.FindResource(ctx, resourceName)
 	if err != nil {
 		return nil, err
@@ -242,7 +242,7 @@ func (d *Deps) SubresourceFor(ctx context.Context, resourceName, name, subresour
 	if err != nil {
 		return nil, err
 	}
-	return apiClient.Subresource(resource, tenant, name, subresource)
+	return apiClient.Subresource(resource, tenant, name, subresource, options...)
 }
 
 // Dependents lists what deleting one resource carries with it. mNi Cloud
