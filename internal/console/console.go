@@ -4,6 +4,7 @@
 package console
 
 import (
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -63,6 +64,14 @@ func Attach(terminal Terminal, out io.Writer, remote io.ReadWriter) error {
 		return joinErr
 	}
 	return restoreErr
+}
+
+// Copy writes what a stream carries to a writer until the stream ends or the
+// user stops waiting. A read of a stream does not end on its own, so a user who
+// stops waiting has the connection taken away from it.
+func Copy(ctx context.Context, out io.Writer, remote io.ReadCloser) error {
+	defer stopOn(ctx, remote)()
+	return stopped(ctx, copyStream(out, remote))
 }
 
 // join copies bytes between a local endpoint and a console, and returns as soon
