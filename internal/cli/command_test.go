@@ -24,7 +24,7 @@ import (
 
 var (
 	testVPC = api.APIResource{
-		Group: "vpc", Version: "v1alpha2", Resource: "vpcs", Kind: "Vpc",
+		Group: "vpc", Version: "v1alpha2", Resource: "vpcs", Singular: "vpc", Kind: "Vpc",
 		Scope: api.ScopeNamespaced, Aliases: []string{"vpc"},
 		AdditionalPrinterColumns: []api.AdditionalPrinterColumn{
 			{Name: "Phase", Type: "string", JSONPath: ".status.phase"},
@@ -53,7 +53,7 @@ var (
 		},
 	}
 	testSubnet = api.APIResource{
-		Group: "vpc", Version: "v1alpha2", Resource: "subnets", Kind: "Subnet",
+		Group: "vpc", Version: "v1alpha2", Resource: "subnets", Singular: "subnet", Kind: "Subnet",
 		Scope: api.ScopeNamespaced,
 		SpecSchema: &api.Schema{
 			Type:     "object",
@@ -70,15 +70,15 @@ var (
 		},
 	}
 	testTenantResource = api.APIResource{
-		Group: "auth", Version: "v1alpha1", Resource: "tenants", Kind: "Tenant",
+		Group: "auth", Version: "v1alpha1", Resource: "tenants", Singular: "tenant", Kind: "Tenant",
 		Scope: api.ScopeCluster,
 	}
 	testMachine = api.APIResource{
-		Group: "vm", Version: "v1alpha1", Resource: "virtualmachines", Kind: "VirtualMachine",
+		Group: "vm", Version: "v1alpha1", Resource: "virtualmachines", Singular: "virtualmachine", Kind: "VirtualMachine",
 		Scope: api.ScopeNamespaced, Aliases: []string{"vm"},
 	}
 	testContainer = api.APIResource{
-		Group: "ctr", Version: "v1alpha", Resource: "containers", Kind: "Container",
+		Group: "ctr", Version: "v1alpha", Resource: "containers", Singular: "container", Kind: "Container",
 		Scope: api.ScopeNamespaced, Aliases: []string{"ctr"},
 	}
 	testSSHKey = api.APIResource{
@@ -409,6 +409,51 @@ func TestGetAddressesTheTenantOfTheContext(t *testing.T) {
 	}
 }
 
+// TestGetTakesEveryNameOfAResource keeps the forms of a name the command line
+// takes. Every form comes from the catalog the server serves, so the CLI holds
+// no table of short names of its own.
+func TestGetTakesEveryNameOfAResource(t *testing.T) {
+	tests := []struct {
+		arg  string
+		want string
+	}{
+		{arg: "virtualmachines", want: machinePath},
+		{arg: "virtualmachine", want: machinePath},
+		{arg: "VirtualMachine", want: machinePath},
+		{arg: "VIRTUALMACHINES", want: machinePath},
+		{arg: "vm", want: machinePath},
+		{arg: "virtualmachines.vm", want: machinePath},
+		{arg: "VirtualMachine.vm", want: machinePath},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.arg, func(t *testing.T) {
+			env := loggedIn(t)
+
+			if _, err := env.run(t, "get", tt.arg, "-o", "json"); err != nil {
+				t.Fatalf("run() error = %v", err)
+			}
+			if env.lastPath() != tt.want {
+				t.Errorf("path = %q, want %q", env.lastPath(), tt.want)
+			}
+		})
+	}
+}
+
+func TestGetOfAResourceOfAnotherGroupIsNotFound(t *testing.T) {
+	env := loggedIn(t)
+
+	_, err := env.run(t, "get", "virtualmachines.ctr")
+
+	var noMatch *api.NoResourceMatchError
+	if !errors.As(err, &noMatch) {
+		t.Fatalf("run() error = %v, want a NoResourceMatchError", err)
+	}
+	if !strings.Contains(err.Error(), "mni api-resources") {
+		t.Errorf("run() error = %q, want it to point at `mni api-resources`", err)
+	}
+}
+
 func TestTenantFlagAfterTheSubcommandWins(t *testing.T) {
 	env := newTestEnv(t)
 	env.writeContext(t, "e2etest")
@@ -613,6 +658,39 @@ func TestAPIResourcesRunsWithoutASession(t *testing.T) {
 	if !strings.Contains(out, "vpcs") {
 		t.Errorf("api-resources = %q, want the catalog", out)
 	}
+}
+
+// TestAPIResourcesWritesTheOtherNamesOfAResource keeps the names a user may type
+// findable, because a name nobody is told about is a name nobody uses.
+func TestAPIResourcesWritesTheOtherNamesOfAResource(t *testing.T) {
+	env := newTestEnv(t)
+	env.writeContext(t, "e2etest")
+
+	out, err := env.run(t, "api-resources")
+	if err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+
+	if !strings.Contains(out, "ALIASES") {
+		t.Errorf("api-resources = %q, want a column of the other names", out)
+	}
+	row := rowOf(t, out, "virtualmachines")
+	if !strings.Contains(row, "virtualmachine,vm") {
+		t.Errorf("row = %q, want the singular name and the alias, without the plural one", row)
+	}
+}
+
+// rowOf returns the line of a table that names one resource.
+func rowOf(t *testing.T, out, resource string) string {
+	t.Helper()
+
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, resource) {
+			return line
+		}
+	}
+	t.Fatalf("output holds no row for %s:\n%s", resource, out)
+	return ""
 }
 
 // TestOnlyThePublicCommandsRunWithoutASession keeps the list of commands that

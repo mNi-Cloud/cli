@@ -2,10 +2,16 @@ package cli
 
 import (
 	"context"
+	"strings"
 
+	"github.com/mNi-Cloud/cli/internal/api"
 	"github.com/mNi-Cloud/cli/internal/output"
 	"github.com/urfave/cli/v3"
 )
+
+// noAlternateNames fills the cell of a resource that only answers to its plural
+// name.
+const noAlternateNames = "-"
 
 func apiResourcesCommand(deps *Deps) *cli.Command {
 	return &cli.Command{
@@ -28,9 +34,17 @@ func (d *Deps) APIResources(ctx context.Context, _ *cli.Command) error {
 	}
 
 	table := output.NewWriter(d.Out)
-	table.WriteHeader("Group", "Version", "Resource")
+	table.WriteHeader("Group", "Version", "Resource", "Aliases")
 	for _, resource := range catalog {
-		table.WriteRow(resource.Group, resource.Version, resource.Resource)
+		table.WriteRow(resource.Group, resource.Version, resource.Resource, aliasCell(resource))
 	}
 	return table.Flush()
+}
+
+func aliasCell(resource api.APIResource) string {
+	names := resource.AlternateNames()
+	if len(names) == 0 {
+		return noAlternateNames
+	}
+	return strings.Join(names, ",")
 }

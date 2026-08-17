@@ -29,9 +29,9 @@ func realCatalog(t *testing.T) APIResourceList {
 func resourceNamed(t *testing.T, catalog APIResourceList, name string) APIResource {
 	t.Helper()
 
-	resource, ok := catalog.FindByName(name)
-	if !ok {
-		t.Fatalf("the recorded catalog serves no %s", name)
+	resource, err := catalog.FindByName(name)
+	if err != nil {
+		t.Fatalf("the recorded catalog serves no %s: %v", name, err)
 	}
 	return resource
 }

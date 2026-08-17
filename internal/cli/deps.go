@@ -4,7 +4,6 @@ package cli
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -207,11 +206,7 @@ func (d *Deps) FindResource(ctx context.Context, name string) (api.APIResource, 
 		return api.APIResource{}, err
 	}
 
-	resource, ok := catalog.FindByName(name)
-	if !ok {
-		return api.APIResource{}, fmt.Errorf("this server serves no resource named %q", name)
-	}
-	return resource, nil
+	return catalog.FindByName(name)
 }
 
 // ResourceFor addresses one kind of resource.
