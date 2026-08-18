@@ -2,6 +2,19 @@
 
 `mni` is the command line client for mNi Cloud.
 
+## AI agent skill
+
+Install the bundled skill for Codex at user scope:
+
+```sh
+gh skill install mNi-Cloud/cli mni-cli --agent codex --scope user
+```
+
+Omit `--scope user` to install it only for the current project. GitHub Copilot,
+Claude Code, Cursor, Gemini CLI, and other supported agents can be selected with
+`--agent`. Before the skill is included in a tagged release, install it from the
+default branch with `mni-cli@main`.
+
 ## Install
 
 ### NixOS
@@ -63,4 +76,3 @@ source <(mni completion zsh)
 source <(mni completion bash)
 mni completion fish > ~/.config/fish/completions/mni.fish
 ```
-

@@ -1,0 +1,4 @@
+interface:
+  display_name: "mNi CLI"
+  short_description: "Operate mNi Cloud safely from the command line"
+  default_prompt: "Use $mni-cli to inspect and manage resources in mNi Cloud."
