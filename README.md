@@ -59,8 +59,12 @@ curl -L https://github.com/mNi-Cloud/cli/releases/latest/download/mni_Darwin_arm
 
 ```powershell
 # Windows, x86_64. On arm take mni_Windows_arm64.zip.
-Invoke-WebRequest https://github.com/mNi-Cloud/cli/releases/latest/download/mni_Windows_x86_64.zip -OutFile mni.zip; Expand-Archive mni.zip -DestinationPath .
+$dir = "$env:LOCALAPPDATA\Programs\mNi\mni"
+Invoke-WebRequest https://github.com/mNi-Cloud/cli/releases/latest/download/mni_Windows_x86_64.zip -OutFile "$env:TEMP\mni.zip"; Expand-Archive "$env:TEMP\mni.zip" -DestinationPath $dir -Force
+[Environment]::SetEnvironmentVariable('Path', "$([Environment]::GetEnvironmentVariable('Path', 'User'));$dir", 'User')
 ```
+
+Open a new PowerShell window before running `mni`.
 
 ## Sign in
 
