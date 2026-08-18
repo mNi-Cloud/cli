@@ -7,13 +7,13 @@
 Install the bundled skill for Codex at user scope:
 
 ```sh
-gh skill install mNi-Cloud/cli mni-cli --agent codex --scope user
+gh skill install mNi-Cloud/cli mni-cli@main --agent codex --scope user
 ```
 
 Omit `--scope user` to install it only for the current project. GitHub Copilot,
 Claude Code, Cursor, Gemini CLI, and other supported agents can be selected with
-`--agent`. Before the skill is included in a tagged release, install it from the
-default branch with `mni-cli@main`.
+`--agent`. After a tagged release includes the skill, the `@main` version may be
+omitted to install that release.
 
 ## Install
 
