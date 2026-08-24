@@ -320,6 +320,18 @@ func TestExecReportsHowTheCommandEnded(t *testing.T) {
 	}
 }
 
+func TestExecReturnsAsSoonAsTheFinalStatusArrives(t *testing.T) {
+	stream := newFakeStream(statusFrame(t, ExitStatus{ExitCode: 5}))
+	defer stream.end()
+
+	options, _, _ := outputOptions()
+	done := runExec(context.Background(), stream, options)
+	result := awaitExec(t, done)
+	if result.err != nil || result.status.ExitCode != 5 {
+		t.Fatalf("Exec() = %+v", result)
+	}
+}
+
 func TestExecReportsAStreamThatEndedWithoutSayingHow(t *testing.T) {
 	stream := newFakeStream(frame(ChannelStdout, "half of it"))
 	stream.end()

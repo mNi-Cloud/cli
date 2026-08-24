@@ -70,9 +70,10 @@ func Shell(terminal ShellTerminal, out io.Writer, remote ShellStream) (ExitStatu
 	defer stopResize()
 
 	inputDone := make(chan error, 1)
-	go func() { inputDone <- copyShellInput(stream, terminal) }()
+	leaving := make(chan struct{})
+	go func() { inputDone <- copyShellInput(stream, terminal, leaving) }()
 
-	status, outputErr := readShellOutput(out, remote)
+	status, outputErr := readShellOutput(out, remote, leaving)
 	restoreErr := restore()
 	select {
 	case inputErr := <-inputDone:
@@ -87,7 +88,7 @@ func Shell(terminal ShellTerminal, out io.Writer, remote ShellStream) (ExitStatu
 	return status, restoreErr
 }
 
-func copyShellInput(stream *lockedShellStream, terminal io.Reader) error {
+func copyShellInput(stream *lockedShellStream, terminal io.Reader, leaving chan<- struct{}) error {
 	reader := &escapeReader{reader: terminal, escape: escapeKey}
 	buffer := make([]byte, inputBufferSize)
 	for {
@@ -98,6 +99,7 @@ func copyShellInput(stream *lockedShellStream, terminal io.Reader) error {
 			}
 		}
 		if errors.Is(err, errEscaped) || errors.Is(err, io.EOF) {
+			close(leaving)
 			if closeErr := stream.control(shellControl{Type: "close"}); closeErr != nil {
 				return closeErr
 			}
@@ -136,11 +138,16 @@ func watchShellSize(stream *lockedShellStream, terminal ExecTerminal) func() {
 	return func() { stop(); close(done) }
 }
 
-func readShellOutput(out io.Writer, remote ShellStream) (ExitStatus, error) {
+func readShellOutput(out io.Writer, remote ShellStream, leaving <-chan struct{}) (ExitStatus, error) {
 	for {
 		text, payload, err := remote.ReadFrame()
 		if errors.Is(err, io.EOF) {
-			return ExitStatus{}, ErrNoExitStatus
+			select {
+			case <-leaving:
+				return ExitStatus{}, nil
+			default:
+				return ExitStatus{}, ErrNoExitStatus
+			}
 		}
 		if err != nil {
 			return ExitStatus{}, err

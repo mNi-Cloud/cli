@@ -100,7 +100,8 @@ func TestShellUsesBinaryTerminalFramesAndTextControls(t *testing.T) {
 
 func TestShellInputSendsBytesAndCloseControl(t *testing.T) {
 	stream := &lockedShellStream{ShellStream: &fakeShellStream{}}
-	err := copyShellInput(stream, strings.NewReader("pwd"+string(rune(escapeKey))))
+	leaving := make(chan struct{})
+	err := copyShellInput(stream, strings.NewReader("pwd"+string(rune(escapeKey))), leaving)
 	if err != nil && !errors.Is(err, errEscaped) {
 		t.Fatalf("copyShellInput() error = %v", err)
 	}
@@ -112,5 +113,19 @@ func TestShellInputSendsBytesAndCloseControl(t *testing.T) {
 	var closeControl shellControl
 	if len(textFrames) != 1 || json.Unmarshal(textFrames[0], &closeControl) != nil || closeControl.Type != "close" {
 		t.Errorf("text frames = %q", textFrames)
+	}
+	select {
+	case <-leaving:
+	default:
+		t.Error("copyShellInput() did not mark the client as leaving")
+	}
+}
+
+func TestShellTreatsAConnectionClosedAfterClientLeaveAsSuccess(t *testing.T) {
+	stream := &fakeShellStream{}
+	leaving := make(chan struct{})
+	close(leaving)
+	if _, err := readShellOutput(io.Discard, stream, leaving); err != nil {
+		t.Fatalf("readShellOutput() error = %v", err)
 	}
 }

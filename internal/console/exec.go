@@ -182,15 +182,14 @@ func (s *sender) send(channel byte, payload []byte) error {
 // whether the server said how the command ended.
 func receive(remote MessageStream, stdout, stderr io.Writer) (ExitStatus, bool, error) {
 	var status ExitStatus
-	ended := false
 
 	for {
 		frame, err := remote.ReadMessage()
 		if errors.Is(err, io.EOF) {
-			return status, ended, nil
+			return status, false, nil
 		}
 		if err != nil {
-			return status, ended, err
+			return status, false, err
 		}
 		if len(frame) == 0 {
 			continue
@@ -200,19 +199,22 @@ func receive(remote MessageStream, stdout, stderr io.Writer) (ExitStatus, bool, 
 		switch channel {
 		case ChannelStdout:
 			if _, err := stdout.Write(payload); err != nil {
-				return status, ended, err
+				return status, false, err
 			}
 		case ChannelStderr:
 			if _, err := stderr.Write(payload); err != nil {
-				return status, ended, err
+				return status, false, err
 			}
 		case ChannelStatus:
 			if err := json.Unmarshal(payload, &status); err != nil {
-				return status, ended, fmt.Errorf("cannot read how the command ended: %w", err)
+				return status, false, fmt.Errorf("cannot read how the command ended: %w", err)
 			}
-			ended = true
+			// Status is the final protocol frame. Returning immediately keeps a
+			// proxy that closes without a WebSocket close frame from turning an
+			// already completed command into a transport failure.
+			return status, true, nil
 		default:
-			return status, ended, fmt.Errorf("the server sent a frame of channel %d, which this client does not know", channel)
+			return status, false, fmt.Errorf("the server sent a frame of channel %d, which this client does not know", channel)
 		}
 	}
 }
