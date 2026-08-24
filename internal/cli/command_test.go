@@ -103,6 +103,12 @@ type recorded struct {
 	Body string
 }
 
+type rawResponse struct {
+	Status      int
+	ContentType string
+	Body        string
+}
+
 type testEnv struct {
 	server   *httptest.Server
 	store    *config.Store
@@ -122,6 +128,9 @@ type testEnv struct {
 	// awaitFrame holds back what a stream sends until the client sent this
 	// frame, the way a command that reads to the end of its input waits.
 	awaitFrame map[string][]byte
+	// raw answers controller endpoints whose successful bodies are not gateway
+	// envelopes, such as guest exec, kubeconfig, and Kubernetes resources.
+	raw map[string]rawResponse
 
 	// mutex guards received, which a stream fills while the test reads it.
 	mutex sync.Mutex
@@ -148,6 +157,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		failures:     map[string]api.Response[any]{},
 		streams:      map[string][][]byte{},
 		awaitFrame:   map[string][]byte{},
+		raw:          map[string]rawResponse{},
 		received:     map[string][][]byte{},
 		object:       map[string]unstructured.Unstructured{},
 		objects:      unstructured.UnstructuredList{},
@@ -167,6 +177,18 @@ func newTestEnv(t *testing.T) *testEnv {
 
 		if websocket.IsWebSocketUpgrade(r) {
 			env.serveStream(w, r)
+			return
+		}
+		if response, ok := env.raw[r.URL.Path]; ok {
+			if response.ContentType != "" {
+				w.Header().Set("Content-Type", response.ContentType)
+			}
+			status := response.Status
+			if status == 0 {
+				status = http.StatusOK
+			}
+			w.WriteHeader(status)
+			_, _ = w.Write([]byte(response.Body))
 			return
 		}
 

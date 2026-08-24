@@ -2,12 +2,14 @@ package cli
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"strconv"
 
+	"github.com/mNi-Cloud/cli/internal/client"
 	"github.com/mNi-Cloud/cli/internal/console"
 	"github.com/urfave/cli/v3"
 )
@@ -17,15 +19,19 @@ const (
 	// the server names its group and version.
 	virtualMachines = "virtualmachines"
 
-	serialSubresource = "serial"
-	vncSubresource    = "vnc"
+	serialSubresource    = "serial"
+	vncSubresource       = "vnc"
+	shellSubresource     = "shell"
+	guestExecSubresource = "exec"
 
 	portFlagName = "port"
 	// tunnelHost keeps a console on this machine. A console carries the screen
 	// and the keyboard of a machine, so it is never offered to the network.
 	tunnelHost = "127.0.0.1"
 
-	highestPort = 65535
+	highestPort                    = 65535
+	workingDirectoryFlagName       = "working-directory"
+	guestExecInputLimit      int64 = 256 * 1024
 )
 
 // powerOperation is one operation the vm-controller serves as a subresource of
@@ -43,11 +49,32 @@ var powerOperations = []powerOperation{
 }
 
 func vmCommand(deps *Deps) *cli.Command {
-	commands := make([]*cli.Command, 0, len(powerOperations)+2)
+	commands := make([]*cli.Command, 0, len(powerOperations)+4)
 	for _, operation := range powerOperations {
 		commands = append(commands, powerCommand(deps, operation))
 	}
 	commands = append(commands,
+		&cli.Command{
+			Name:      guestExecSubresource,
+			Usage:     "Run a command in a virtual machine",
+			ArgsUsage: "<name> -- <command> [args...]",
+			Arguments: []cli.Argument{
+				&cli.StringArg{Name: "name"},
+				&cli.StringArgs{Name: commandArgName, Max: -1},
+			},
+			Flags: []cli.Flag{
+				&cli.BoolFlag{Name: stdinFlagName, Aliases: []string{"i"}, Usage: "Send standard input to the command"},
+				&cli.StringFlag{Name: workingDirectoryFlagName, Aliases: []string{"C"}, Usage: "Working directory in the virtual machine"},
+			},
+			Action: deps.VMGuestExec,
+		},
+		&cli.Command{
+			Name:      shellSubresource,
+			Usage:     "Open a shell in a virtual machine",
+			ArgsUsage: "<name>",
+			Arguments: []cli.Argument{&cli.StringArg{Name: "name"}},
+			Action:    deps.VMShell,
+		},
 		&cli.Command{
 			Name:      serialSubresource,
 			Usage:     "Open the serial console of a virtual machine",
@@ -76,6 +103,80 @@ func vmCommand(deps *Deps) *cli.Command {
 		Before:   deps.RequireLogin,
 		Commands: commands,
 	}
+}
+
+// VMGuestExec runs a non-interactive command through the guest agent.
+func (d *Deps) VMGuestExec(ctx context.Context, cmd *cli.Command) error {
+	name, err := machineName(cmd, guestExecSubresource)
+	if err != nil {
+		return err
+	}
+	argv := cmd.StringArgs(commandArgName)
+	if len(argv) == 0 {
+		return errors.New("mni vm exec needs a command (usage: mni vm exec <name> -- <command> [args...])")
+	}
+	request := client.GuestExecRequest{Argv: argv, WorkingDirectory: cmd.String(workingDirectoryFlagName)}
+	if cmd.Bool(stdinFlagName) {
+		input, err := io.ReadAll(io.LimitReader(d.In, guestExecInputLimit+1))
+		if err != nil {
+			return fmt.Errorf("cannot read standard input: %w", err)
+		}
+		if int64(len(input)) > guestExecInputLimit {
+			return fmt.Errorf("standard input is larger than %d KiB", guestExecInputLimit/1024)
+		}
+		request.StdinBase64 = base64.StdEncoding.EncodeToString(input)
+	}
+	apiClient, err := d.Client()
+	if err != nil {
+		return err
+	}
+	tenant, err := d.Tenant()
+	if err != nil {
+		return err
+	}
+	response, err := apiClient.GuestExec(ctx, tenant, name, request)
+	if err != nil {
+		return err
+	}
+	if _, err := io.WriteString(d.Out, response.Stdout); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(d.ErrOut, response.Stderr); err != nil {
+		return err
+	}
+	return commandEnded(console.ExitStatus{ExitCode: response.ExitCode})
+}
+
+// VMShell attaches the current terminal to a shell served by the guest agent.
+func (d *Deps) VMShell(ctx context.Context, cmd *cli.Command) error {
+	name, err := machineName(cmd, shellSubresource)
+	if err != nil {
+		return err
+	}
+	terminal, ok := terminalFile(d.In)
+	if !ok {
+		return fmt.Errorf("cannot open a shell because %w", errNotATerminal)
+	}
+	apiClient, err := d.Client()
+	if err != nil {
+		return err
+	}
+	tenant, err := d.Tenant()
+	if err != nil {
+		return err
+	}
+	stream, err := apiClient.VMShell(ctx, tenant, name)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = stream.Close() }()
+	fmt.Fprintf(d.ErrOut, "Connected to the shell of %s/%s. Press %s to leave it.\n", virtualMachines, name, console.EscapeName)
+	status, err := console.Shell(console.File{File: terminal}, d.Out, stream)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(d.ErrOut, "\nDisconnected from the virtual machine shell.")
+	return commandEnded(status)
 }
 
 func powerCommand(deps *Deps, operation powerOperation) *cli.Command {

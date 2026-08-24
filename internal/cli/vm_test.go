@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
@@ -35,6 +37,39 @@ func TestVMPowerCallsTheSubresourceOfTheMachine(t *testing.T) {
 				t.Errorf("vm %s = %q, want it to report the machine", test.command, out)
 			}
 		})
+	}
+}
+
+func TestVMGuestExecSendsArgvStdinAndReturnsTheGuestExitCode(t *testing.T) {
+	env := loggedIn(t)
+	path := machinePath + "/clidbg-vm/guest-exec"
+	env.raw[path] = rawResponse{Body: `{"stdout":"hello\n","stderr":"warning\n","exitCode":4}`}
+
+	out, err := env.runWith(t, strings.NewReader("input"), false,
+		"vm", "exec", "clidbg-vm", "--stdin", "--working-directory", "/tmp", "--", "printf", "a b")
+	if err == nil || ExitCode(err) != 4 {
+		t.Fatalf("vm exec error = %v (code %d), want code 4", err, ExitCode(err))
+	}
+	if !strings.Contains(out, "hello") {
+		t.Errorf("stdout = %q", out)
+	}
+	var request struct {
+		Argv             []string `json:"argv"`
+		StdinBase64      string   `json:"stdinBase64"`
+		WorkingDirectory string   `json:"workingDirectory"`
+	}
+	if err := json.Unmarshal([]byte(env.requests[len(env.requests)-1].Body), &request); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(request.Argv, "|") != "printf|a b" || request.StdinBase64 != base64.StdEncoding.EncodeToString([]byte("input")) || request.WorkingDirectory != "/tmp" {
+		t.Errorf("guest exec request = %+v", request)
+	}
+}
+
+func TestVMGuestExecNeedsACommand(t *testing.T) {
+	env := loggedIn(t)
+	if _, err := env.run(t, "vm", "exec", "clidbg-vm"); err == nil {
+		t.Fatal("vm exec accepted no command")
 	}
 }
 

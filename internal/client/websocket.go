@@ -30,6 +30,10 @@ type Stream interface {
 	ReadMessage() ([]byte, error)
 	// WriteMessage sends one payload as one whole frame.
 	WriteMessage(payload []byte) error
+	// ReadFrame hands out one frame and reports whether it was a text frame.
+	ReadFrame() (text bool, payload []byte, err error)
+	// WriteTextMessage sends one JSON control as a text frame.
+	WriteTextMessage(payload []byte) error
 }
 
 // stream carries bytes over the binary frames of a WebSocket. One reader and
@@ -92,8 +96,20 @@ func (s *stream) ReadMessage() ([]byte, error) {
 	return payload, nil
 }
 
+func (s *stream) ReadFrame() (bool, []byte, error) {
+	messageType, payload, err := s.conn.ReadMessage()
+	if err != nil {
+		return false, nil, endOfStream(err)
+	}
+	return messageType == websocket.TextMessage, payload, nil
+}
+
 func (s *stream) WriteMessage(payload []byte) error {
 	return s.conn.WriteMessage(websocket.BinaryMessage, payload)
+}
+
+func (s *stream) WriteTextMessage(payload []byte) error {
+	return s.conn.WriteMessage(websocket.TextMessage, payload)
 }
 
 func (s *stream) Close() error {

@@ -63,6 +63,8 @@ func NewCommandFor(version string, deps *Deps) *cli.Command {
 			dependentsCommand(deps),
 			vmCommand(deps),
 			ctrCommand(deps),
+			k8sCommand(deps),
+			cloudShellCommand(deps),
 			sshKeyCommand(deps),
 		},
 	}

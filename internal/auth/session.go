@@ -89,6 +89,17 @@ func (s *Session) Token(ctx context.Context) (string, error) {
 	return s.refresh(ctx)
 }
 
+// Credential returns the current access token together with its expiry. It is
+// used when a remote environment must receive both values as one credential.
+func (s *Session) Credential(ctx context.Context) (config.Credential, error) {
+	if _, err := s.Token(ctx); err != nil {
+		return config.Credential{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.held, nil
+}
+
 func (s *Session) load() error {
 	if s.found {
 		return nil

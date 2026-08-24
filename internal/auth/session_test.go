@@ -81,6 +81,23 @@ func TestSessionReturnsAValidToken(t *testing.T) {
 	}
 }
 
+func TestSessionCredentialReturnsTokenAndExpiryTogether(t *testing.T) {
+	expiresAt := testNow.Add(time.Hour)
+	store := &fakeCredentialStore{
+		found:      true,
+		credential: config.Credential{Context: "e2e", AccessToken: "access", ExpiresAt: expiresAt},
+	}
+	session := newTestSession(t, store, "https://issuer.test/token")
+
+	credential, err := session.Credential(context.Background())
+	if err != nil {
+		t.Fatalf("Credential() error = %v", err)
+	}
+	if credential.AccessToken != "access" || !credential.ExpiresAt.Equal(expiresAt) {
+		t.Errorf("Credential() = %+v", credential)
+	}
+}
+
 func TestSessionCachesTheCredential(t *testing.T) {
 	store := &fakeCredentialStore{
 		found:      true,
