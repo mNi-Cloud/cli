@@ -21,6 +21,7 @@ const (
 
 	serialSubresource    = "serial"
 	vncSubresource       = "vnc"
+	rdpSubresource       = "rdp"
 	shellSubresource     = "shell"
 	guestExecSubresource = "exec"
 
@@ -94,6 +95,19 @@ func vmCommand(deps *Deps) *cli.Command {
 				},
 			},
 			Action: deps.VNCConsole,
+		},
+		&cli.Command{
+			Name:      rdpSubresource,
+			Usage:     "Offer the Remote Desktop of a virtual machine on a local port",
+			ArgsUsage: "<name>",
+			Arguments: []cli.Argument{&cli.StringArg{Name: "name"}},
+			Flags: []cli.Flag{
+				&cli.IntFlag{
+					Name:  portFlagName,
+					Usage: "Local port to offer the Remote Desktop on, or none to take a free one",
+				},
+			},
+			Action: deps.RDPConsole,
 		},
 	)
 
@@ -271,6 +285,40 @@ func (d *Deps) VNCConsole(ctx context.Context, cmd *cli.Command) error {
 
 	fmt.Fprintln(d.Out, tunnel.Address())
 	fmt.Fprintf(d.ErrOut, "The graphical console of %s/%s is offered on %s. Point a VNC client at it, and press Ctrl-C to stop.\n",
+		virtualMachines, name, tunnel.Address())
+
+	return tunnel.Serve(ctx, func(ctx context.Context) (io.ReadWriteCloser, error) {
+		return subresource.Connect(ctx)
+	})
+}
+
+// RDPConsole offers the Remote Desktop of a machine on a local port, because
+// its protocol is meant for a Remote Desktop client rather than for a
+// terminal.
+func (d *Deps) RDPConsole(ctx context.Context, cmd *cli.Command) error {
+	name, err := machineName(cmd, rdpSubresource)
+	if err != nil {
+		return err
+	}
+
+	address, err := tunnelAddress(cmd.Int(portFlagName))
+	if err != nil {
+		return err
+	}
+
+	subresource, err := d.SubresourceFor(ctx, virtualMachines, name, rdpSubresource)
+	if err != nil {
+		return err
+	}
+
+	tunnel, err := console.Listen(address)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tunnel.Close() }()
+
+	fmt.Fprintln(d.Out, tunnel.Address())
+	fmt.Fprintf(d.ErrOut, "The Remote Desktop of %s/%s is offered on %s. Point a Remote Desktop client at it, and press Ctrl-C to stop.\n",
 		virtualMachines, name, tunnel.Address())
 
 	return tunnel.Serve(ctx, func(ctx context.Context) (io.ReadWriteCloser, error) {
