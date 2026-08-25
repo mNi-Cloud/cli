@@ -61,9 +61,11 @@ type ExecTerminal interface {
 	Resized() (changed <-chan struct{}, stop func())
 }
 
-// Size is how big the terminal of this process is right now.
-func (f File) Size() (TerminalSize, error) {
-	width, height, err := term.GetSize(int(f.Fd()))
+// Size is how big the terminal of this process is right now. The size is asked
+// of the output handle, because on Windows the input handle answers no size
+// query.
+func (f *File) Size() (TerminalSize, error) {
+	width, height, err := term.GetSize(f.outputFD())
 	if err != nil {
 		return TerminalSize{}, err
 	}

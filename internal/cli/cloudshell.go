@@ -107,11 +107,11 @@ func (d *Deps) OpenCloudShell(ctx context.Context, cmd *cli.Command) error {
 	if sessionID == "" {
 		return errors.New("mni cloudshell shell needs a session ID")
 	}
-	terminalFile, ok := terminalFile(d.In)
+	terminalFile, outputFile, ok := terminalFiles(d.In, d.Out)
 	if !ok {
 		return fmt.Errorf("cannot open CloudShell because %w", errNotATerminal)
 	}
-	terminal := console.File{File: terminalFile}
+	terminal := console.NewFile(terminalFile, outputFile)
 	size, err := terminal.Size()
 	if err != nil {
 		return err

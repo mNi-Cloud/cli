@@ -203,12 +203,12 @@ func (d *Deps) execOptions(stdin, tty bool) (console.ExecOptions, error) {
 		return options, nil
 	}
 
-	file, ok := terminalFile(d.In)
+	file, outputFile, ok := terminalFiles(d.In, d.Out)
 	if !ok {
 		return options, fmt.Errorf("cannot give a command a terminal because %w", errNotATerminal)
 	}
 
-	terminal := console.File{File: file}
+	terminal := console.NewFile(file, outputFile)
 	options.Stdin = terminal
 	options.Terminal = terminal
 	return options, nil

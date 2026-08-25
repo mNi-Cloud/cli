@@ -153,10 +153,11 @@ func (d *Deps) VMShell(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	terminal, ok := terminalFile(d.In)
+	terminalFile, outputFile, ok := terminalFiles(d.In, d.Out)
 	if !ok {
 		return fmt.Errorf("cannot open a shell because %w", errNotATerminal)
 	}
+	terminal := console.NewFile(terminalFile, outputFile)
 	apiClient, err := d.Client()
 	if err != nil {
 		return err
@@ -171,7 +172,7 @@ func (d *Deps) VMShell(ctx context.Context, cmd *cli.Command) error {
 	}
 	defer func() { _ = stream.Close() }()
 	fmt.Fprintf(d.ErrOut, "Connected to the shell of %s/%s. Press %s to leave it.\n", virtualMachines, name, console.EscapeName)
-	status, err := console.Shell(console.File{File: terminal}, d.Out, stream)
+	status, err := console.Shell(terminal, d.Out, stream)
 	if err != nil {
 		return err
 	}
@@ -217,10 +218,11 @@ func (d *Deps) SerialConsole(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	terminal, ok := terminalFile(d.In)
+	terminalFile, outputFile, ok := terminalFiles(d.In, d.Out)
 	if !ok {
 		return fmt.Errorf("cannot open a serial console because %w", errNotATerminal)
 	}
+	terminal := console.NewFile(terminalFile, outputFile)
 
 	subresource, err := d.SubresourceFor(ctx, virtualMachines, name, serialSubresource)
 	if err != nil {
@@ -235,7 +237,7 @@ func (d *Deps) SerialConsole(ctx context.Context, cmd *cli.Command) error {
 	fmt.Fprintf(d.ErrOut, "Connected to the serial console of %s/%s. Press %s to leave it.\n",
 		virtualMachines, name, console.EscapeName)
 
-	if err := console.Attach(console.File{File: terminal}, d.Out, stream); err != nil {
+	if err := console.Attach(terminal, d.Out, stream); err != nil {
 		return err
 	}
 

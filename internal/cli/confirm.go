@@ -61,3 +61,16 @@ func terminalFile(in io.Reader) (*os.File, bool) {
 	}
 	return file, true
 }
+
+// terminalFiles returns the terminal an input stream is, if it is one, and the
+// output file the terminal is sized from, if the output is a file. A terminal
+// is sized from the side it writes to, because on Windows the input handle
+// answers no size query.
+func terminalFiles(in io.Reader, out io.Writer) (*os.File, *os.File, bool) {
+	file, ok := terminalFile(in)
+	if !ok {
+		return nil, nil, false
+	}
+	output, _ := out.(*os.File)
+	return file, output, true
+}

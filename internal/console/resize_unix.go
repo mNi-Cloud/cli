@@ -12,7 +12,7 @@ import (
 // terminal tells the process it belongs to about a resize with SIGWINCH, and a
 // command running on the far end only learns about it if this side passes it
 // on.
-func (f File) Resized() (<-chan struct{}, func()) {
+func (f *File) Resized() (<-chan struct{}, func()) {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGWINCH)
 

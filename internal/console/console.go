@@ -31,18 +31,43 @@ type Terminal interface {
 	Raw() (restore func() error, err error)
 }
 
-// File is the terminal of this process.
+// File is the terminal of this process. It keeps the handle it reads from and
+// the handle it is sized from apart, because a terminal reads from one and is
+// sized from the other: on Windows the input handle answers no size query, so
+// the output handle is used for that.
 type File struct {
-	*os.File
+	In  *os.File
+	Out *os.File
+}
+
+// NewFile builds the terminal of this process from its input and output
+// handles. The output handle may be nil, in which case the input handle is
+// used for size queries too, which is what a Unix terminal expects.
+func NewFile(in, out *os.File) *File {
+	return &File{In: in, Out: out}
+}
+
+// Read is what the user types.
+func (f *File) Read(p []byte) (int, error) {
+	return f.In.Read(p)
 }
 
 // Raw puts the terminal into raw mode and hands back what restores it.
-func (f File) Raw() (func() error, error) {
-	state, err := term.MakeRaw(int(f.Fd()))
+func (f *File) Raw() (func() error, error) {
+	state, err := term.MakeRaw(int(f.In.Fd()))
 	if err != nil {
 		return nil, err
 	}
-	return func() error { return term.Restore(int(f.Fd()), state) }, nil
+	return func() error { return term.Restore(int(f.In.Fd()), state) }, nil
+}
+
+// outputFD is the handle a size query is put to. A terminal is sized from the
+// side it writes to, which on Windows is the only handle that answers.
+func (f *File) outputFD() int {
+	if f.Out != nil {
+		return int(f.Out.Fd())
+	}
+	return int(f.In.Fd())
 }
 
 // Attach joins the terminal to a console until the user types the escape key or
