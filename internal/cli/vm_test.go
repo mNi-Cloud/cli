@@ -113,10 +113,19 @@ func TestVMSerialNeedsATerminal(t *testing.T) {
 	}
 }
 
-func TestVMVNCRefusesAPortThatIsNone(t *testing.T) {
-	env := loggedIn(t)
+func TestVMConsoleTunnelsRefuseAPortThatIsNone(t *testing.T) {
+	for _, command := range []string{"vnc", "rdp"} {
+		t.Run(command, func(t *testing.T) {
+			env := loggedIn(t)
 
-	if _, err := env.run(t, "vm", "vnc", "clidbg-vm", "--port", "70000"); err == nil {
-		t.Fatal("run() error = nil, want a port outside the range refused")
+			if _, err := env.run(t, "vm", command, "clidbg-vm", "--port", "70000"); err == nil {
+				t.Fatal("run() error = nil, want a port outside the range refused")
+			}
+			for _, request := range env.requests {
+				if strings.HasSuffix(request.URL.Path, "/"+command) {
+					t.Errorf("the %s stream was opened despite an invalid local port", command)
+				}
+			}
+		})
 	}
 }
