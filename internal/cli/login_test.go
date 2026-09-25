@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"io"
+	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/mNi-Cloud/cli/internal/config"
@@ -128,6 +131,40 @@ func TestLoginChangesOnlyWhatTheFlagsName(t *testing.T) {
 
 	if target != want {
 		t.Errorf("loginTarget() = %+v, want %+v", target, want)
+	}
+}
+
+func TestLoginTakesAPastedRedirectOnlyFromATerminal(t *testing.T) {
+	typed := strings.NewReader("")
+
+	tests := []struct {
+		name        string
+		interactive bool
+		want        io.Reader
+	}{
+		{name: "the input is a terminal", interactive: true, want: typed},
+		{name: "the input is a pipe", interactive: false, want: nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out := &bytes.Buffer{}
+			deps := NewDeps(typed, out, io.Discard)
+			deps.Interactive = tt.interactive
+			httpClient := &http.Client{}
+
+			flow := deps.loginFlow(httpClient)
+
+			if flow.PastedRedirects != tt.want {
+				t.Errorf("PastedRedirects = %v, want %v", flow.PastedRedirects, tt.want)
+			}
+			if flow.HTTPClient != httpClient {
+				t.Error("HTTPClient is not the client of the context")
+			}
+			if flow.Output != out {
+				t.Error("Output is not the output stream of the run")
+			}
+		})
 	}
 }
 
