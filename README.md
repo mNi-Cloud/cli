@@ -73,6 +73,13 @@ mni login
 mni login --context staging --server https://api.example.com --issuer https://anchorage.example.com
 ```
 
+### Over SSH
+
+When you run `mni login` on a host you reach over SSH, open the printed URL in
+the browser on your own machine and sign in. The browser then shows an error
+page, because it cannot reach `mni` on the host. Copy the URL from its address
+bar, paste it into the terminal, and press Enter.
+
 ## Shell completion
 
 ```
