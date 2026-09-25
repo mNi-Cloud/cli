@@ -44,6 +44,13 @@ type Flow struct {
 	OpenBrowser func(authorizationURL string) error
 	Output      io.Writer
 	Now         func() time.Time
+
+	// PastedRedirects is where the user can paste the URL the browser was
+	// redirected to, one per line. A browser on another machine, as over SSH,
+	// cannot reach the loopback listener, but its address bar still holds the
+	// redirect. The login takes whichever of the two comes first. Nil means
+	// the login waits only on the loopback listener.
+	PastedRedirects io.Reader
 }
 
 // Run sends the user through the browser and comes back with a token set.
@@ -86,7 +93,7 @@ func (f *Flow) Run(ctx context.Context, req LoginRequest) (Token, error) {
 
 	f.invite(target)
 
-	result, err := firstOutcome(ctx, callback)
+	result, err := f.awaitResponse(ctx, callback)
 	if err != nil {
 		return Token{}, err
 	}
@@ -116,9 +123,34 @@ func (f *Flow) invite(target string) {
 	}
 	if err := open(target); err != nil {
 		fmt.Fprintf(out, "Could not open a browser (%v). Open the URL above by hand.\n", err)
-		return
+	} else {
+		fmt.Fprintln(out, "Waiting for the browser to come back...")
 	}
-	fmt.Fprintln(out, "Waiting for the browser to come back...")
+
+	if f.takesPastedRedirects() {
+		fmt.Fprintln(out, "If the browser shows an error page after you sign in, paste the URL from its address bar here and press Enter.")
+	}
+}
+
+// awaitResponse waits for the authorization response on the loopback listener,
+// and on a pasted redirect as well when the flow takes one.
+func (f *Flow) awaitResponse(ctx context.Context, callback *callbackServer) (callbackResult, error) {
+	// A paste reader can stay blocked on the terminal after the wait. Ending
+	// its context here keeps it quiet while the rest of the login runs.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	sources := []responseSource{callback}
+	if f.takesPastedRedirects() {
+		paste := newRedirectPaste(callback.redirectURI, f.PastedRedirects, f.output())
+		paste.Start(ctx)
+		sources = append(sources, paste)
+	}
+	return firstOutcome(ctx, sources...)
+}
+
+func (f *Flow) takesPastedRedirects() bool {
+	return f.PastedRedirects != nil
 }
 
 func (f *Flow) output() io.Writer {
