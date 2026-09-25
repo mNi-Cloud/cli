@@ -6,11 +6,13 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -113,6 +115,61 @@ func (p *fakeProvider) newFlow(output *bytes.Buffer) *Flow {
 			return resp.Body.Close()
 		},
 	}
+}
+
+// newPastingFlow is a flow whose browser cannot reach the loopback listener, as
+// when the CLI runs over SSH. The browser stops at the redirect, and the user
+// types the lines paste returns for it.
+func (p *fakeProvider) newPastingFlow(t *testing.T, output *bytes.Buffer, paste func(authorizationURL, redirect string) []string) *Flow {
+	t.Helper()
+
+	input, typing := io.Pipe()
+	t.Cleanup(func() { _ = typing.Close() })
+
+	stranded := *p.server.Client()
+	stranded.CheckRedirect = func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+
+	flow := p.newFlow(output)
+	flow.PastedRedirects = input
+	flow.OpenBrowser = func(authorizationURL string) error {
+		go func() {
+			resp, err := stranded.Get(authorizationURL)
+			if err != nil {
+				_ = typing.CloseWithError(err)
+				return
+			}
+			_ = resp.Body.Close()
+
+			for _, line := range paste(authorizationURL, resp.Header.Get("Location")) {
+				if _, err := io.WriteString(typing, line+"\n"); err != nil {
+					return
+				}
+			}
+		}()
+		return nil
+	}
+	return flow
+}
+
+func pasteTheRedirect(_, redirect string) []string {
+	return []string{redirect}
+}
+
+// endedInput is an input that has already ended. It says when it was read.
+type endedInput struct {
+	read chan struct{}
+	once sync.Once
+}
+
+func newEndedInput() *endedInput {
+	return &endedInput{read: make(chan struct{})}
+}
+
+func (r *endedInput) Read([]byte) (int, error) {
+	r.once.Do(func() { close(r.read) })
+	return 0, io.EOF
 }
 
 func (p *fakeProvider) loginRequest(redirect string) LoginRequest {
@@ -294,6 +351,195 @@ func TestFlowRunStopsWhenTheContextEnds(t *testing.T) {
 
 	if _, err := flow.Run(ctx, provider.loginRequest(freeLoopbackRedirect(t))); err == nil {
 		t.Fatal("Run() error = nil, want the wait to be cut short")
+	}
+}
+
+func TestFlowRunTakesAPastedRedirect(t *testing.T) {
+	provider := newFakeProvider(t)
+	output := &bytes.Buffer{}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	flow := provider.newPastingFlow(t, output, pasteTheRedirect)
+	token, err := flow.Run(ctx, provider.loginRequest("http://127.0.0.1:0/callback"))
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	if token.AccessToken != "access" {
+		t.Errorf("AccessToken = %q, want the token the provider issued", token.AccessToken)
+	}
+	if got := provider.tokenForm.Get("code"); got != "the-code" {
+		t.Errorf("redeemed code = %q, want the code of the pasted redirect", got)
+	}
+	asked := provider.authorizeQuery.Get("redirect_uri")
+	if redeemed := provider.tokenForm.Get("redirect_uri"); redeemed != asked {
+		t.Errorf("redeemed redirect_uri = %q, want the one of the authorization request %q", redeemed, asked)
+	}
+	if !strings.Contains(output.String(), "paste the URL from its address bar here") {
+		t.Errorf("output = %q, want it to say the redirect can be pasted", output)
+	}
+}
+
+func TestFlowRunTakesTheLoopbackWhileWaitingForAPaste(t *testing.T) {
+	provider := newFakeProvider(t)
+
+	input, typing := io.Pipe()
+	t.Cleanup(func() { _ = typing.Close() })
+
+	flow := provider.newFlow(&bytes.Buffer{})
+	flow.PastedRedirects = input
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	token, err := flow.Run(ctx, provider.loginRequest("http://127.0.0.1:0/callback"))
+	if err != nil {
+		t.Fatalf("Run() error = %v, want the loopback to finish the login while nothing is pasted", err)
+	}
+	if token.AccessToken != "access" {
+		t.Errorf("AccessToken = %q, want the token the provider issued", token.AccessToken)
+	}
+}
+
+func TestFlowRunAsksAgainUntilThePastedLineIsTheRedirect(t *testing.T) {
+	provider := newFakeProvider(t)
+	redirect := freeLoopbackRedirect(t)
+	output := &bytes.Buffer{}
+
+	flow := provider.newPastingFlow(t, output, func(authorizationURL, location string) []string {
+		return []string{
+			"",
+			"not a URL",
+			authorizationURL,
+			"http://127.0.0.1:1/callback?code=stale&state=stale",
+			strings.Replace(location, "/callback?", "/elsewhere?", 1),
+			location,
+		}
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	token, err := flow.Run(ctx, provider.loginRequest(redirect))
+	if err != nil {
+		t.Fatalf("Run() error = %v, want the login to finish once the redirect is pasted", err)
+	}
+	if token.AccessToken != "access" {
+		t.Errorf("AccessToken = %q, want the token the provider issued", token.AccessToken)
+	}
+
+	asked := "Paste the URL that starts with " + redirect + " and press Enter."
+	if got := strings.Count(output.String(), asked); got != 5 {
+		t.Errorf("output = %q, want to be asked again once for each of the 5 bad lines", output)
+	}
+}
+
+func TestFlowRunReportsARefusalThatWasPasted(t *testing.T) {
+	provider := newFakeProvider(t)
+	provider.deny = "access_denied"
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	flow := provider.newPastingFlow(t, &bytes.Buffer{}, pasteTheRedirect)
+	_, err := flow.Run(ctx, provider.loginRequest("http://127.0.0.1:0/callback"))
+
+	var refusal *AuthorizationError
+	if !errors.As(err, &refusal) {
+		t.Fatalf("Run() error = %v, want an AuthorizationError", err)
+	}
+	if refusal.Code != "access_denied" {
+		t.Errorf("Code = %q, want %q", refusal.Code, "access_denied")
+	}
+}
+
+func TestFlowRunRejectsAPastedStateItDidNotSend(t *testing.T) {
+	provider := newFakeProvider(t)
+	provider.state = func(string) string { return "forged" }
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	flow := provider.newPastingFlow(t, &bytes.Buffer{}, pasteTheRedirect)
+	_, err := flow.Run(ctx, provider.loginRequest("http://127.0.0.1:0/callback"))
+	if err == nil {
+		t.Fatal("Run() error = nil, want the forged state refused")
+	}
+	if !strings.Contains(err.Error(), "state") {
+		t.Errorf("Run() error = %q, want it to mention the state", err)
+	}
+}
+
+func TestFlowRunKeepsWaitingOnTheLoopbackOnceThePasteEnds(t *testing.T) {
+	provider := newFakeProvider(t)
+	ended := newEndedInput()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	client := provider.server.Client()
+	flow := provider.newFlow(&bytes.Buffer{})
+	flow.PastedRedirects = ended
+	flow.OpenBrowser = func(authorizationURL string) error {
+		go func() {
+			select {
+			case <-ended.read:
+			case <-ctx.Done():
+				return
+			}
+			if resp, err := client.Get(authorizationURL); err == nil {
+				_ = resp.Body.Close()
+			}
+		}()
+		return nil
+	}
+
+	token, err := flow.Run(ctx, provider.loginRequest("http://127.0.0.1:0/callback"))
+	if err != nil {
+		t.Fatalf("Run() error = %v, want the loopback to finish the login after the paste input ended", err)
+	}
+	if token.AccessToken != "access" {
+		t.Errorf("AccessToken = %q, want the token the provider issued", token.AccessToken)
+	}
+}
+
+func TestFlowInvite(t *testing.T) {
+	const target = "https://issuer.test/auth?state=s"
+	const opened = "Open this URL to sign in:\n\n  " + target + "\n\n"
+	const waiting = "Waiting for the browser to come back...\n"
+	const byHand = "Could not open a browser (no display). Open the URL above by hand.\n"
+	const pasteHint = "If the browser shows an error page after you sign in, " +
+		"paste the URL from its address bar here and press Enter.\n"
+
+	tests := []struct {
+		name   string
+		pasted io.Reader
+		open   error
+		want   string
+	}{
+		{name: "browser opens", want: opened + waiting},
+		{name: "no browser", open: errors.New("no display"), want: opened + byHand},
+		{name: "browser opens and paste works", pasted: strings.NewReader(""), want: opened + waiting + pasteHint},
+		{name: "no browser and paste works", pasted: strings.NewReader(""), open: errors.New("no display"), want: opened + byHand + pasteHint},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := &bytes.Buffer{}
+			flow := &Flow{
+				Output:          output,
+				PastedRedirects: tt.pasted,
+				OpenBrowser:     func(string) error { return tt.open },
+			}
+
+			flow.invite(target)
+
+			if output.String() != tt.want {
+				t.Errorf("invite() printed %q, want %q", output, tt.want)
+			}
+		})
 	}
 }
 

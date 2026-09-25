@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"slices"
 
 	"github.com/mNi-Cloud/cli/internal/api"
@@ -52,8 +53,7 @@ func (d *Deps) Login(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	flow := &auth.Flow{HTTPClient: httpClient, Output: d.Out}
-	token, err := flow.Run(ctx, auth.LoginRequest{
+	token, err := d.loginFlow(httpClient).Run(ctx, auth.LoginRequest{
 		Issuer:      target.OAuth.Issuer,
 		ClientID:    target.OAuth.ClientID,
 		RedirectURI: target.OAuth.RedirectURI,
@@ -79,6 +79,17 @@ func (d *Deps) Login(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 	return d.settleTenant(ctx, apiClient, cfg, target)
+}
+
+// loginFlow builds the browser flow of a login. The redirect can be pasted only
+// when the input is a terminal, because a pipe has no person behind it to copy
+// the URL out of a browser.
+func (d *Deps) loginFlow(httpClient *http.Client) *auth.Flow {
+	flow := &auth.Flow{HTTPClient: httpClient, Output: d.Out}
+	if d.Interactive {
+		flow.PastedRedirects = d.In
+	}
+	return flow
 }
 
 // loginContextName picks the context the login writes to: the one the command

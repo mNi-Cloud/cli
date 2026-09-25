@@ -19,32 +19,6 @@ const shutdownGrace = 2 * time.Second
 // dynamicPort in a redirect URI asks the OS for a free port.
 const dynamicPort = "0"
 
-// AuthorizationError is an RFC 6749 §4.1.2.1 error handed back on the redirect.
-type AuthorizationError struct {
-	Code        string
-	Description string
-}
-
-func (e *AuthorizationError) Error() string {
-	message := "the identity provider refused the login: " + e.Code
-	if e.Description != "" {
-		message += " (" + e.Description + ")"
-	}
-	return message
-}
-
-// callbackResult is the authorization response the browser handed back.
-type callbackResult struct {
-	Code   string
-	State  string
-	Issuer string
-}
-
-type callbackOutcome struct {
-	result callbackResult
-	err    error
-}
-
 // callbackServer is the loopback listener that catches the redirect. RFC 8252
 // §7.3 has a native client take its authorization response this way.
 type callbackServer struct {
@@ -100,14 +74,9 @@ func (s *callbackServer) Start() {
 	}()
 }
 
-// Wait blocks until the browser comes back or the context ends.
-func (s *callbackServer) Wait(ctx context.Context) (callbackResult, error) {
-	select {
-	case outcome := <-s.outcomes:
-		return outcome.result, outcome.err
-	case <-ctx.Done():
-		return callbackResult{}, ctx.Err()
-	}
+// Outcomes hands back the authorization response once the browser comes back.
+func (s *callbackServer) Outcomes() <-chan callbackOutcome {
+	return s.outcomes
 }
 
 // Close stops the loopback server, leaving the last page time to reach the browser.
@@ -133,26 +102,6 @@ func (s *callbackServer) handle(w http.ResponseWriter, r *http.Request) {
 	renderCallbackPage(w, page, outcome.err)
 
 	s.answered.Do(func() { s.outcomes <- outcome })
-}
-
-func readCallback(query url.Values) callbackOutcome {
-	if code := query.Get("error"); code != "" {
-		return callbackOutcome{err: &AuthorizationError{
-			Code:        code,
-			Description: query.Get("error_description"),
-		}}
-	}
-
-	code := query.Get("code")
-	if code == "" {
-		return callbackOutcome{err: fmt.Errorf("the identity provider redirected back without an authorization code")}
-	}
-
-	return callbackOutcome{result: callbackResult{
-		Code:   code,
-		State:  query.Get("state"),
-		Issuer: query.Get("iss"),
-	}}
 }
 
 func parseLoopbackRedirect(redirectURI string) (*url.URL, error) {

@@ -44,9 +44,9 @@ func TestCallbackServerReceivesTheCode(t *testing.T) {
 		t.Errorf("callback page = %q, want it to say the login worked", body)
 	}
 
-	result, err := server.Wait(context.Background())
+	result, err := firstOutcome(context.Background(), server)
 	if err != nil {
-		t.Fatalf("Wait() error = %v", err)
+		t.Fatalf("firstOutcome() error = %v", err)
 	}
 	if result.Code != "the-code" {
 		t.Errorf("Code = %q, want %q", result.Code, "the-code")
@@ -73,12 +73,12 @@ func TestCallbackServerReportsTheAuthorizationError(t *testing.T) {
 		t.Errorf("callback page = %q, want it to show the error", body)
 	}
 
-	_, err = server.Wait(context.Background())
+	_, err = firstOutcome(context.Background(), server)
 	if err == nil {
-		t.Fatal("Wait() error = nil, want the authorization error")
+		t.Fatal("firstOutcome() error = nil, want the authorization error")
 	}
 	if !strings.Contains(err.Error(), "access_denied") {
-		t.Errorf("Wait() error = %q, want it to carry the error code", err)
+		t.Errorf("firstOutcome() error = %q, want it to carry the error code", err)
 	}
 }
 
@@ -91,8 +91,8 @@ func TestCallbackServerRejectsAResponseWithoutACode(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	if _, err := server.Wait(context.Background()); err == nil {
-		t.Fatal("Wait() error = nil, want an error about the missing code")
+	if _, err := firstOutcome(context.Background(), server); err == nil {
+		t.Fatal("firstOutcome() error = nil, want an error about the missing code")
 	}
 }
 
@@ -110,8 +110,8 @@ func TestCallbackServerIgnoresOtherPaths(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	if _, err := server.Wait(ctx); !errors.Is(err, context.DeadlineExceeded) {
-		t.Errorf("Wait() error = %v, want the deadline to run out", err)
+	if _, err := firstOutcome(ctx, server); !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("firstOutcome() error = %v, want the deadline to run out", err)
 	}
 }
 
@@ -121,8 +121,8 @@ func TestCallbackServerStopsWhenTheContextEnds(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	if _, err := server.Wait(ctx); !errors.Is(err, context.Canceled) {
-		t.Errorf("Wait() error = %v, want context.Canceled", err)
+	if _, err := firstOutcome(ctx, server); !errors.Is(err, context.Canceled) {
+		t.Errorf("firstOutcome() error = %v, want context.Canceled", err)
 	}
 }
 
