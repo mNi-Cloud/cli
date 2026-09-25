@@ -86,7 +86,7 @@ func (f *Flow) Run(ctx context.Context, req LoginRequest) (Token, error) {
 
 	f.invite(target)
 
-	result, err := callback.Wait(ctx)
+	result, err := firstOutcome(ctx, callback)
 	if err != nil {
 		return Token{}, err
 	}
